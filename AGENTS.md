@@ -43,6 +43,7 @@ Read a fact here before asserting it — never from memory:
 | fact                                          | authoritative source                              |
 | --------------------------------------------- | ------------------------------------------------- |
 | stack, rendering model, test runner           | `docs/adr/0001-stack.md`, `docs/adr/0002-character-rendering.md` (both open) |
+| character renderer boundary                   | `docs/adr/0004-character-renderer-slot.md`        |
 | Node version, package manager, root scripts   | `package.json`, `.nvmrc`                          |
 | workspace membership                          | `pnpm-workspace.yaml`                             |
 | TypeScript strictness floor                   | `tsconfig.base.json`                              |

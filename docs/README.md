@@ -12,8 +12,8 @@
 | 主题 | 入口 | 内容 |
 | --- | --- | --- |
 | 主提案 | [proposals/](proposals/README.md) | 做什么、不做什么、怎样算做完；当前主提案是《伴侣小生命：情绪互动与状态调试原型》 |
-| 决策记录 | [adr/](adr/) | 逐条记录取舍与理由；素材授权已 accepted，栈与渲染路线仍为 proposed |
-| 调研 | [research/2026-11-06-companion-prototype.md](research/2026-11-06-companion-prototype.md) | 伴侣小生命原型：需求拆解、素材与渲染选型、情绪系统、成本与里程碑 |
+| 决策记录 | [adr/](adr/) | 逐条记录取舍与理由；素材授权已 accepted，栈、渲染路线与渲染槽位仍为 proposed |
+| 调研 | [research/](research/) | 选型前的证据：原型需求与成本、2D 渲染库的实测体积与能力对比 |
 | 部署 | `deployment.md` | Worker 名称、绑定、环境与密钥——首个子应用建好后补建 |
 
 ## 维护约定

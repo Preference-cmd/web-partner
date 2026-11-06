@@ -193,6 +193,12 @@ interface CharacterController {
 **顺带的收益**：r3f 对 React 的 `<19.4` 约束随之消失；而且日后换 Live2D 时，
 Live2D 自带 WebGL 画布，与 DOM 环境层按 z-index 叠放即可，不需要与 three 做纹理互操作。
 
+**槽位化之后的表述**：本节结论应读作"首个 2D 适配器用 Canvas 2D 实现"，而不是
+"整个产品只做 Canvas 2D"。渲染层结构改为可切换的槽位后
+（[ADR 0004](0004-character-renderer-slot.md)），PixiJS 作为第二适配器在打磨阶段
+接入，3D 适配器只保留接口。选型顺序的理由见
+[2D 渲染库调研](../research/2026-11-06-2d-renderers.md)。
+
 ## 决策
 
 （待用户确认。若同意 3D，则把 `Status` 改为 `accepted`，并在主提案 §Decision 中
