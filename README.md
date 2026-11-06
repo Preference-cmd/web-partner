@@ -4,7 +4,8 @@ A web application deployed to Cloudflare Workers.
 
 **Status: workflow only.** The repository defines how work is done; the
 application itself has not been scaffolded, because the stack decision is
-still open — see [docs/adr/0001-stack.md](docs/adr/0001-stack.md).
+still open. The decision record lives in the local `.agents/pipelines/adr/`
+tree, which is not part of this repository.
 
 ## Getting started
 
@@ -20,8 +21,10 @@ pnpm check            # the gate: lint, typecheck, test, build
 ```text
 apps/*       deployable Workers applications — one wrangler.jsonc each
 packages/*   code shared between apps
-docs/        durable facts, and ADRs for decisions
 ```
+
+Proposals, research notes and ADRs are working material kept outside the
+repository, under `.agents/pipelines/` on the machine that wrote them.
 
 ## Working on it
 

@@ -7,25 +7,21 @@
 **Partner** is a web application deployed to **Cloudflare Workers**. It is a
 pnpm workspace: deployable apps live in `apps/*`, shared code in `packages/*`.
 
-The frontend stack is **not chosen yet** — it is an open decision recorded in
-[`docs/adr/0001-stack.md`](docs/adr/0001-stack.md), and the rendering route in
-[`docs/adr/0002-character-rendering.md`](docs/adr/0002-character-rendering.md).
-Until those are accepted, do not add a framework dependency, scaffold
-`apps/web`, or assume a rendering model. The workflow below is stack-neutral
-and already works.
+The frontend stack and the character renderer are **not chosen yet**. Both are
+recorded as ADRs under `.agents/pipelines/adr/` on this machine. Until they are
+accepted, do not add a framework dependency, scaffold `apps/web`, or assume a
+rendering model. The workflow below is stack-neutral and already works.
 
-Work is planned in a proposal under `.agents/pipelines/`, which is **not part
-of this repository** — a fresh clone has none of it. What a clone keeps is the
-outcome: the decisions in `docs/adr/` and the evidence in `docs/research/`.
+All working documentation — proposals, research and ADRs — lives under
+`.agents/pipelines/` and is **not part of this repository**: a fresh clone has
+none of it. This file, `README.md` and `CHANGELOG.md` are the only documents a
+clone carries, so they must stand alone.
 
 ## Layout
 
 ```text
 apps/                  # deployable Workers apps; one wrangler.jsonc each (not created yet)
 packages/              # shared code: types, clients, UI kit (not created yet)
-docs/                  # durable facts about this repo — enter at docs/README.md
-docs/adr/              # Architecture Decision Records, one file per decision
-docs/research/         # one-off surveys that justified a decision
 scripts/               # repo helpers run by hooks, CI or a package
 .github/workflows/     # ci.yml (the gate), deploy.yml (manual Workers release)
 .github/dependabot.yml # weekly grouped dependency updates
@@ -34,7 +30,8 @@ CLAUDE.md -> AGENTS.md
 ```
 
 `node_modules/`, `dist/`, `.wrangler/`, `coverage/` and `.dev.vars*` are build
-output or local secrets. None of them are committed.
+output or local secrets. None of them are committed. `.agents/` sits outside the
+repository by design (see Proposals below).
 
 ## Fact sources
 
@@ -42,8 +39,8 @@ Read a fact here before asserting it — never from memory:
 
 | fact                                          | authoritative source                              |
 | --------------------------------------------- | ------------------------------------------------- |
-| stack, rendering model, test runner           | `docs/adr/0001-stack.md`, `docs/adr/0002-character-rendering.md` (both open) |
-| character renderer boundary                   | `docs/adr/0004-character-renderer-slot.md`        |
+| stack, rendering model, test runner           | `.agents/pipelines/adr/0001-stack.md`, `0002-character-rendering.md` (both open, local) |
+| character renderer boundary                   | `.agents/pipelines/adr/0004-character-renderer-slot.md` (local) |
 | Node version, package manager, root scripts   | `package.json`, `.nvmrc`                          |
 | workspace membership                          | `pnpm-workspace.yaml`                             |
 | TypeScript strictness floor                   | `tsconfig.base.json`                              |
@@ -51,9 +48,9 @@ Read a fact here before asserting it — never from memory:
 | commit message rules                          | `commitlint.config.mjs`, `lefthook.yml`           |
 | CI jobs and gates                             | `.github/workflows/ci.yml`                        |
 | Worker name, routes, bindings, compatibility  | `apps/*/wrangler.jsonc`                           |
-| deploy steps and secrets                      | `.github/workflows/deploy.yml`, `docs/deployment.md` (created with the first app) |
-| unfinished decisions and their reasoning      | `docs/adr/`                                       |
-| what is in scope, and what counts as done     | the ADR that landed the change; `.agents/pipelines/` locally |
+| deploy steps and secrets                      | `.github/workflows/deploy.yml`, `apps/*/wrangler.jsonc` |
+| unfinished decisions and their reasoning      | `.agents/pipelines/adr/` (local)                  |
+| what is in scope, and what counts as done     | the ADR that landed the change, and the local proposal |
 
 When a fact changes, update the table's target in the same change. A fact page
 that disagrees with the code is a bug, not a note.
@@ -112,10 +109,11 @@ material for the machine that wrote them, not repository content.
 - The proposal owns goal, scope (in and out), acceptance criteria and phases.
   `Status: proposed` means no implementation code yet.
 - Anything that must outlive the working copy — the decision, its reasoning,
-  the acceptance criteria that still bind — is written into `docs/adr/` or
-  `docs/research/` **in the same change**. A fact that exists only under
-  `.agents/` is lost on the next clone.
-- Shipped code, `docs/` and commit messages never cite `.agents/`: state the
+  the acceptance criteria that still bind — is written into
+  `.agents/pipelines/adr/` **in the same change**. A fact that exists only under
+  `.agents/` is lost on the next clone. If a fact matters beyond this machine,
+  put it in `AGENTS.md` or the code — those are the only places that travel.
+- Shipped code, docs and commit messages never cite `.agents/`: state the
   reason inline instead of pointing at a file nobody else has.
 - An acceptance item is checked with evidence (a screenshot, a recording, a
   command output, a URL), never because the work "feels done".
@@ -138,8 +136,8 @@ material for the machine that wrote them, not repository content.
   variables are SCREAMING_SNAKE_CASE. Match the surrounding code before
   introducing a new pattern.
 - **Language.** Conversation with the user is Chinese. `AGENTS.md`,
-  `README.md`, code, comments and commit messages are English. `docs/` is
-  Chinese. Match the language of the file you are editing.
+  `README.md`, code, comments and commit messages are English. Working docs under
+  `.agents/pipelines/` are Chinese. Match the language of the file you are editing.
 - **Secrets.** Nothing secret is committed: no token, account id, `.dev.vars`
   or `.env`. Local values go in `.dev.vars`, production values in the
   Cloudflare dashboard or GitHub secrets.
@@ -150,7 +148,7 @@ material for the machine that wrote them, not repository content.
 
 - One Worker per app: `apps/<name>/` owns its `wrangler.jsonc`, its build and
   its `deploy` script (`wrangler deploy`). Bindings (KV, D1, R2, Queues,
-  Durable Objects) are declared there and documented in `docs/deployment.md`.
+  Durable Objects) are declared and documented in that file.
 - Local development runs the app's `dev` script, which is `wrangler dev`
   (or the framework's dev server with the Cloudflare plugin) — the same
   runtime CI deploys, not a Node approximation.
@@ -166,9 +164,9 @@ material for the machine that wrote them, not repository content.
 The stack is the first open decision; more will follow (rendering model, data
 store, auth, where the API lives). For any of them:
 
-1. Read `docs/adr/` for decisions and `docs/research/` for the evidence behind
-   them — the answer may already be recorded.
-2. If it is not, write the ADR in `docs/adr/NNNN-<slug>.md` with
+1. Read `.agents/pipelines/adr/` for decisions and `.agents/pipelines/research/`
+   for the evidence behind them — the answer may already be recorded.
+2. If it is not, write the ADR in `.agents/pipelines/adr/NNNN-<slug>.md` with
    `Status: proposed`, the options, the tradeoffs and a recommendation.
 3. Ask the user to choose. Do not implement the choice before it is accepted,
    and do not leave a half-built scaffold behind as a "prototype" on `main`.
@@ -179,7 +177,9 @@ store, auth, where the API lives). For any of them:
 
 - Read the fact source before asserting a fact; verify running behavior
   against the code, not against a plan or an old note.
-- Keep `docs/` current in the same change that makes it stale.
+- Keep the local ADR current in the same change that makes it stale: an ADR
+  that disagrees with the code is worse than none, because it outlives the
+  reasoning that produced it.
 - Do not widen the gate to make a change pass: no skipped tests without an
   issue link, no `--no-verify` in CI, no relaxed `tsconfig` for a package.
 - Leave the tree clean: no commented-out code, no unused exports, no
