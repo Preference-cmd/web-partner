@@ -8,9 +8,14 @@
 pnpm workspace: deployable apps live in `apps/*`, shared code in `packages/*`.
 
 The frontend stack is **not chosen yet** — it is an open decision recorded in
-[`docs/adr/0001-stack.md`](docs/adr/0001-stack.md). Until that ADR is
-accepted, do not add a framework dependency, scaffold `apps/web`, or assume a
-rendering model. The workflow below is stack-neutral and already works.
+[`docs/adr/0001-stack.md`](docs/adr/0001-stack.md), and the rendering route in
+[`docs/adr/0002-character-rendering.md`](docs/adr/0002-character-rendering.md).
+Until those are accepted, do not add a framework dependency, scaffold
+`apps/web`, or assume a rendering model. The workflow below is stack-neutral
+and already works.
+
+The product being built is specified by the master proposal:
+[`docs/proposals/feature/2026-11-06-companion-prototype.md`](docs/proposals/feature/2026-11-06-companion-prototype.md).
 
 ## Layout
 
@@ -18,7 +23,9 @@ rendering model. The workflow below is stack-neutral and already works.
 apps/                  # deployable Workers apps; one wrangler.jsonc each (not created yet)
 packages/              # shared code: types, clients, UI kit (not created yet)
 docs/                  # durable facts about this repo — enter at docs/README.md
+docs/proposals/        # what to build, scope, acceptance, phases — the master proposal
 docs/adr/              # Architecture Decision Records, one file per decision
+docs/research/         # one-off surveys that justified a decision
 scripts/               # repo helpers run by hooks, CI or a package
 .github/workflows/     # ci.yml (the gate), deploy.yml (manual Workers release)
 .github/dependabot.yml # weekly grouped dependency updates
@@ -35,7 +42,7 @@ Read a fact here before asserting it — never from memory:
 
 | fact                                          | authoritative source                              |
 | --------------------------------------------- | ------------------------------------------------- |
-| stack, rendering model, test runner           | `docs/adr/0001-stack.md` (open)                   |
+| stack, rendering model, test runner           | `docs/adr/0001-stack.md`, `docs/adr/0002-character-rendering.md` (both open) |
 | Node version, package manager, root scripts   | `package.json`, `.nvmrc`                          |
 | workspace membership                          | `pnpm-workspace.yaml`                             |
 | TypeScript strictness floor                   | `tsconfig.base.json`                              |
@@ -45,6 +52,7 @@ Read a fact here before asserting it — never from memory:
 | Worker name, routes, bindings, compatibility  | `apps/*/wrangler.jsonc`                           |
 | deploy steps and secrets                      | `.github/workflows/deploy.yml`, `docs/deployment.md` (created with the first app) |
 | unfinished decisions and their reasoning      | `docs/adr/`                                       |
+| what is in scope, and what counts as done     | `docs/proposals/` (master proposal per feature)   |
 
 When a fact changes, update the table's target in the same change. A fact page
 that disagrees with the code is a bug, not a note.
@@ -77,8 +85,8 @@ CI that `pnpm check` does not run, or the reverse — the two lists are one list
 - **Conventional Commits**, enforced by the `commit-msg` hook and CI. The
   title is `<type>(<scope>): <summary>`, type from `feat`, `fix`, `refactor`,
   `perf`, `docs`, `test`, `chore`, `ci`, `build`, scope from
-  `commitlint.config.mjs`, summary lower-case and imperative. Body and
-  footers are free.
+  `commitlint.config.mjs`, summary imperative and lower-case apart from
+  acronyms (`ADR`, `WebGL`, `R3F`). Body and footers are free.
 - **One logical change per commit.** A commit that needs "and" in its title is
   two commits.
 - **Hooks are checkpoints, CI is the gate.** `pre-commit` formats and lints
@@ -93,6 +101,19 @@ CI that `pnpm check` does not run, or the reverse — the two lists are one list
   `CHANGELOG.md`, with its migration, in the same push.
 - Do not commit a failing `pnpm check`. If a check is legitimately blocked,
   fix or relax it deliberately in its own commit and record why.
+
+## Proposals
+
+Non-trivial work starts as a proposal, not as code. One master proposal per
+feature under `docs/proposals/<class>/YYYY-MM-DD-<slug>.md`, following the
+template and lifecycle in [`docs/proposals/README.md`](docs/proposals/README.md).
+
+- The proposal owns goal, scope (**in and out**), acceptance criteria and
+  phases. The ADRs under `docs/adr/` own the decisions it depends on.
+- `Status: proposed` means no implementation code yet. Work the proposal does
+  not cover goes back into it — amend the scope — before any code is written.
+- An acceptance item is checked with evidence (a screenshot, a recording, a
+  command output, a URL), never because the work "feels done".
 
 ## Conventions
 
@@ -140,7 +161,8 @@ CI that `pnpm check` does not run, or the reverse — the two lists are one list
 The stack is the first open decision; more will follow (rendering model, data
 store, auth, where the API lives). For any of them:
 
-1. Read `docs/adr/` first — the answer may already be recorded.
+1. Read `docs/proposals/` for scope and `docs/adr/` for decisions — the answer
+   may already be recorded.
 2. If it is not, write the ADR in `docs/adr/NNNN-<slug>.md` with
    `Status: proposed`, the options, the tradeoffs and a recommendation.
 3. Ask the user to choose. Do not implement the choice before it is accepted,
