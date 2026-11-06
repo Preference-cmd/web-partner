@@ -1,0 +1,35 @@
+# Local git hooks (lefthook). They are early checkpoints, not the gate: CI
+# runs the same list in `.github/workflows/ci.yml` and is what a change is
+# judged by.
+#
+# Install: `pnpm install` runs `scripts/install-hooks.mjs` (the root
+# `prepare` script), or run `pnpm exec lefthook install` by hand.
+# Docs: https://lefthook.dev/configuration/
+glob_matcher: doublestar
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: lint and format (staged)
+      glob: '*.{js,jsx,ts,tsx,mjs,cjs,json,jsonc}'
+      run: pnpm exec biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+      stage_fixed: true
+
+    - name: whitespace
+      run: git diff --cached --check
+
+commit-msg:
+  jobs:
+    - name: conventional commits
+      run: pnpm exec commitlint --edit {1}
+
+pre-push:
+  parallel: true
+  jobs:
+    # Fast structural checks only. `pnpm build` and the full test matrix stay
+    # in CI so a push is not blocked by a slow machine.
+    - name: typecheck
+      run: pnpm typecheck
+
+    - name: test
+      run: pnpm test

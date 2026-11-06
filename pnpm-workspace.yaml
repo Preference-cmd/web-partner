@@ -1,0 +1,12 @@
+# pnpm workspace. One repository, several units:
+#
+#   apps/*       deployable Workers applications; each has its own
+#                wrangler.jsonc and its own `build` / `deploy` scripts
+#   packages/*   code shared by apps; never deployed on its own
+#
+# Neither directory exists yet — the stack decision in docs/adr/0001-stack.md
+# creates them. The globs are already correct for that layout, and the root
+# scripts use `--if-present` so an empty workspace is not a failure.
+packages:
+  - apps/*
+  - packages/*

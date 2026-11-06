@@ -1,0 +1,37 @@
+# ----- Dependencies -----
+node_modules/
+.pnpm-store/
+
+# ----- Build output -----
+dist/
+.wrangler/
+.astro/
+.output/
+*.tsbuildinfo
+
+# ----- Local environment / secrets -----
+# `.dev.vars*` is what `wrangler dev` reads; never commit it or a real `.env`.
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+
+# ----- Test + tooling droppings -----
+coverage/
+*.log
+
+# ----- Editor / OS -----
+.DS_Store
+._*
+*.sw?
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# ----- Machine-local agent material -----
+# Path-imported by the agent harness; not part of the repository.
+AGENTS.local.md
+CLAUDE.local.md
+.agents/

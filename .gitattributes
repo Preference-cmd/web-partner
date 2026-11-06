@@ -1,0 +1,18 @@
+# Normalize line endings on checkout so a Windows editor cannot make the
+# whole tree dirty. Text stays LF everywhere; GitHub renders Markdown readme
+# styles regardless.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.avif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.pdf binary
+
+# Generated lockfile: do not diff it like source, but keep it in the repo.
+pnpm-lock.yaml linguist-generated=true

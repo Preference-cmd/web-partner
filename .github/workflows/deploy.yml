@@ -1,0 +1,65 @@
+name: Deploy
+
+# Production deploys are deliberate: this workflow only runs when dispatched.
+# It stays inert until an app exists — the guard step fails with the reason
+# instead of deploying an empty workspace. Requires the repository secrets
+# CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID.
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: Workspace app under apps/ to deploy
+        required: true
+        default: web
+        type: string
+      environment:
+        description: Cloudflare environment to target
+        required: true
+        default: production
+        type: choice
+        options:
+          - production
+          - staging
+
+permissions:
+  contents: read
+
+concurrency:
+  # One deploy per app+environment at a time; a queued deploy waits rather
+  # than being cancelled mid-upload.
+  group: deploy-${{ inputs.app }}-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Require the Worker configuration
+        run: |
+          app="apps/${{ inputs.app }}"
+          if [ ! -f "$app/wrangler.jsonc" ] && [ ! -f "$app/wrangler.toml" ] && [ ! -f "$app/wrangler.json" ]; then
+            echo "::error::$app has no wrangler configuration. Accept docs/adr/0001-stack.md and scaffold the app first."
+            exit 1
+          fi
+
+      - name: Check
+        run: pnpm check
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/${{ inputs.app }}
+          command: deploy --env ${{ inputs.environment }}
+          packageManager: pnpm

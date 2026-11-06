@@ -1,0 +1,107 @@
+name: CI
+
+# The gate. `pnpm check` is the same list run locally; this file splits it
+# into parallel jobs and adds the one check a root script cannot do —
+# commitlint over the pushed range. Keep the two lists in step: a change is
+# ready when both pass.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to a pull request cancels its older run. Pushes to main and
+# manual runs each get their own group, so none is cancelled or left waiting.
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+
+  typecheck:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+  commits:
+    # Backs up the local commit-msg hook: every commit in the pushed range
+    # must satisfy commitlint. History written before the hook existed is not
+    # judged — only the range this push adds.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Commit messages follow Conventional Commits
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          head="$(git rev-parse HEAD)"
+          if [ -z "$BASE" ] || [ "$BASE" = "$(printf '0%.0s' {1..40})" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            # A new branch or a force push: judge the commits this push adds.
+            base="$(git rev-parse --verify -q "$head~1" || echo "$head")"
+          else
+            base="$BASE"
+          fi
+          if [ "$base" = "$head" ]; then
+            # A single root commit: commitlint rejects --from equal to --to.
+            pnpm exec commitlint --last --verbose
+          else
+            pnpm exec commitlint --from "$base" --to "$head" --verbose
+          fi
