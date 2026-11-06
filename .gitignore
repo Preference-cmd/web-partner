@@ -31,7 +31,9 @@ coverage/
 !.vscode/settings.json
 
 # ----- Machine-local agent material -----
-# Path-imported by the agent harness; not part of the repository.
+# Path-imported by the agent harness and kept out of the repository: proposals,
+# skills and local notes are working material, not project records. Tracked
+# decisions live in docs/adr/; never cite .agents/ from shipped files.
 AGENTS.local.md
 CLAUDE.local.md
 .agents/

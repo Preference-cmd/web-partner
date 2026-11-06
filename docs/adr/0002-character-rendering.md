@@ -7,7 +7,7 @@
 
 ## 背景
 
-主提案 [《伴侣小生命》](../proposals/feature/2026-11-06-companion-prototype.md) 要求：
+主提案《伴侣小生命：情绪互动与状态调试原型》要求：
 四种情绪状态、角色与背景光影联动、移动端可用、三天内产出可演示版本、部署在
 Cloudflare Workers、开发由单人 + AI agent 完成、不购买昂贵的商业授权。
 

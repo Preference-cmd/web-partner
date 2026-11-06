@@ -14,8 +14,9 @@ Until those are accepted, do not add a framework dependency, scaffold
 `apps/web`, or assume a rendering model. The workflow below is stack-neutral
 and already works.
 
-The product being built is specified by the master proposal:
-[`docs/proposals/feature/2026-11-06-companion-prototype.md`](docs/proposals/feature/2026-11-06-companion-prototype.md).
+Work is planned in a proposal under `.agents/pipelines/`, which is **not part
+of this repository** — a fresh clone has none of it. What a clone keeps is the
+outcome: the decisions in `docs/adr/` and the evidence in `docs/research/`.
 
 ## Layout
 
@@ -23,7 +24,6 @@ The product being built is specified by the master proposal:
 apps/                  # deployable Workers apps; one wrangler.jsonc each (not created yet)
 packages/              # shared code: types, clients, UI kit (not created yet)
 docs/                  # durable facts about this repo — enter at docs/README.md
-docs/proposals/        # what to build, scope, acceptance, phases — the master proposal
 docs/adr/              # Architecture Decision Records, one file per decision
 docs/research/         # one-off surveys that justified a decision
 scripts/               # repo helpers run by hooks, CI or a package
@@ -53,7 +53,7 @@ Read a fact here before asserting it — never from memory:
 | Worker name, routes, bindings, compatibility  | `apps/*/wrangler.jsonc`                           |
 | deploy steps and secrets                      | `.github/workflows/deploy.yml`, `docs/deployment.md` (created with the first app) |
 | unfinished decisions and their reasoning      | `docs/adr/`                                       |
-| what is in scope, and what counts as done     | `docs/proposals/` (master proposal per feature)   |
+| what is in scope, and what counts as done     | the ADR that landed the change; `.agents/pipelines/` locally |
 
 When a fact changes, update the table's target in the same change. A fact page
 that disagrees with the code is a bug, not a note.
@@ -105,14 +105,18 @@ CI that `pnpm check` does not run, or the reverse — the two lists are one list
 
 ## Proposals
 
-Non-trivial work starts as a proposal, not as code. One master proposal per
-feature under `docs/proposals/<class>/YYYY-MM-DD-<slug>.md`, following the
-template and lifecycle in [`docs/proposals/README.md`](docs/proposals/README.md).
+Non-trivial work starts as a proposal, not as code. Proposals live in
+`.agents/pipelines/proposals/` and are **gitignored**: they are working
+material for the machine that wrote them, not repository content.
 
-- The proposal owns goal, scope (**in and out**), acceptance criteria and
-  phases. The ADRs under `docs/adr/` own the decisions it depends on.
-- `Status: proposed` means no implementation code yet. Work the proposal does
-  not cover goes back into it — amend the scope — before any code is written.
+- The proposal owns goal, scope (in and out), acceptance criteria and phases.
+  `Status: proposed` means no implementation code yet.
+- Anything that must outlive the working copy — the decision, its reasoning,
+  the acceptance criteria that still bind — is written into `docs/adr/` or
+  `docs/research/` **in the same change**. A fact that exists only under
+  `.agents/` is lost on the next clone.
+- Shipped code, `docs/` and commit messages never cite `.agents/`: state the
+  reason inline instead of pointing at a file nobody else has.
 - An acceptance item is checked with evidence (a screenshot, a recording, a
   command output, a URL), never because the work "feels done".
 
@@ -162,8 +166,8 @@ template and lifecycle in [`docs/proposals/README.md`](docs/proposals/README.md)
 The stack is the first open decision; more will follow (rendering model, data
 store, auth, where the API lives). For any of them:
 
-1. Read `docs/proposals/` for scope and `docs/adr/` for decisions — the answer
-   may already be recorded.
+1. Read `docs/adr/` for decisions and `docs/research/` for the evidence behind
+   them — the answer may already be recorded.
 2. If it is not, write the ADR in `docs/adr/NNNN-<slug>.md` with
    `Status: proposed`, the options, the tradeoffs and a recommendation.
 3. Ask the user to choose. Do not implement the choice before it is accepted,
