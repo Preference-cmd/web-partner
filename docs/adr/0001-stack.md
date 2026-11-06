@@ -44,10 +44,37 @@ Next.js 的 RSC 与适配层完全不参与这条路径。
 
 因此**建议选第二项**：Vite + React SPA + Worker API，具体为：
 
-- Vite 8 + React 19.3.x（r3f 要求 `<19.4`，不可放 `^19`）+ TypeScript；
+- Vite 8 + React 19 + TypeScript；
 - `@cloudflare/vite-plugin` 让 `pnpm dev` 直接跑在 `workerd`，与生产同运行时；
 - 单个 Worker 同时承担静态资源与 `/api/*`（Hono 路由），不拆两个 Worker；
-- three + `@react-three/fiber` 渲染角色，素材用 CC0 的 `RobotExpressive.glb`。
+- 角色用 Canvas 2D 自绘（非 three.js），理由见
+  [ADR 0002 修订二](0002-character-rendering.md)；素材为社区鲸鱼娘立绘，
+  授权见 [ADR 0003](0003-character-assets.md)。
+
+### 依赖清单
+
+版本于 2026-11-06 核对，写进 `apps/web/package.json` 时按此锁定：
+
+| 依赖 | 版本 | 用途 |
+| --- | --- | --- |
+| `vite` | 8.3.6 | 构建与 dev server |
+| `@vitejs/plugin-react` | 6.2.1 | React 编译（peer 要求 vite ^8） |
+| `react` / `react-dom` | 19.3.1 | UI |
+| `typescript` | ^6.0.3 | 与仓库根一致 |
+| `tailwindcss` + `@tailwindcss/vite` | 4.3.4 | 样式 |
+| `zustand` | 5.0.16 | 情绪状态与调试面板共享 |
+| `hono` | 4.13.16 | `/api/classify` 路由 |
+| `wrangler` | 4.158.0 | 部署与本地 workerd |
+| `@cloudflare/vite-plugin` | 1.67.0 | dev/build 与 Workers 集成 |
+| `@cloudflare/workers-types` | 5.20261106.1 | Worker 侧类型 |
+| `vitest` | 5.1.0 | 分类器与 reducer 单测 |
+| `@fontsource/jetbrains-mono` | 5.3.0 | 调试面板等宽字体（自托管） |
+| `motion` | 14.10.0 | 可选：气泡与抽屉的弹簧动画，CSS 能覆盖就不用 |
+
+不引入 three.js、`@react-three/fiber`、drei 与后处理：角色是平面立绘，
+WebGL 在这条路径上换不来观感，只换来约 250 KB gzip 和一套额外的布局系统。
+中文正文不打包字体，用系统 CJK 栈（`PingFang SC` / `Microsoft YaHei` /
+`Noto Sans SC`）避免 10 MB 级的字体文件。
 
 副作用：`apps/web` 的 `build` 产出 `dist/`（含 client 与 Worker 产物），`deploy`
 用 `wrangler deploy` 读取构建输出的 `wrangler.json`，与根 `AGENTS.md` 的约定一致。
