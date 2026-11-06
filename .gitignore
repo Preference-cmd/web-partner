@@ -32,8 +32,8 @@ coverage/
 
 # ----- Machine-local agent material -----
 # Path-imported by the agent harness and kept out of the repository: proposals,
-# skills and local notes are working material, not project records. Tracked
-# decisions live in docs/adr/; never cite .agents/ from shipped files.
+# skills and local notes are working material, not project records. A decision
+# lives in a proposal; a shipped file states its reason inline instead.
 AGENTS.local.md
 CLAUDE.local.md
 .agents/

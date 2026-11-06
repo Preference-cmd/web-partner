@@ -48,7 +48,7 @@ jobs:
         run: |
           app="apps/${{ inputs.app }}"
           if [ ! -f "$app/wrangler.jsonc" ] && [ ! -f "$app/wrangler.toml" ] && [ ! -f "$app/wrangler.json" ]; then
-            echo "::error::$app has no wrangler configuration. Accept docs/adr/0001-stack.md and scaffold the app first."
+            echo "::error::$app has no wrangler configuration. Scaffold the app with its wrangler.jsonc before deploying."
             exit 1
           fi
 
