@@ -17,8 +17,8 @@ change states its migration at the top of the release it ships in.
   enforced by commitlint, and a GitHub Actions gate that mirrors `pnpm check`.
 - A manually dispatched Workers deploy workflow, inert until an app and its
   `wrangler.jsonc` exist.
-- An open decision record for the stack, kept with the other working
-  documentation under `.agents/pipelines/` (not part of the repository).
+- An open proposal for the stack, kept with the other working material under
+  `.agents/pipelines/` (not part of the repository).
 
 ### Notes
 

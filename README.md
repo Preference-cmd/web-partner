@@ -4,8 +4,8 @@ A web application deployed to Cloudflare Workers.
 
 **Status: workflow only.** The repository defines how work is done; the
 application itself has not been scaffolded, because the stack decision is
-still open. The decision record lives in the local `.agents/pipelines/adr/`
-tree, which is not part of this repository.
+still awaiting approval. That decision lives in the local proposal under
+`.agents/pipelines/`, which is not part of this repository.
 
 ## Getting started
 
@@ -23,7 +23,7 @@ apps/*       deployable Workers applications — one wrangler.jsonc each
 packages/*   code shared between apps
 ```
 
-Proposals, research notes and ADRs are working material kept outside the
+Proposals and their research notes are working material kept outside the
 repository, under `.agents/pipelines/` on the machine that wrote them.
 
 ## Working on it

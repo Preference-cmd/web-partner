@@ -7,15 +7,17 @@
 **Partner** is a web application deployed to **Cloudflare Workers**. It is a
 pnpm workspace: deployable apps live in `apps/*`, shared code in `packages/*`.
 
-The frontend stack and the character renderer are **not chosen yet**. Both are
-recorded as ADRs under `.agents/pipelines/adr/` on this machine. Until they are
-accepted, do not add a framework dependency, scaffold `apps/web`, or assume a
-rendering model. The workflow below is stack-neutral and already works.
+The stack and the character renderer are settled in the local proposal but
+**not yet approved**; `Status: proposed` means no implementation code. Until it
+flips to `implemented`, do not add a framework dependency, scaffold `apps/web`,
+or assume a rendering model. The workflow below is stack-neutral and already
+works.
 
-All working documentation — proposals, research and ADRs — lives under
-`.agents/pipelines/` and is **not part of this repository**: a fresh clone has
-none of it. This file, `README.md` and `CHANGELOG.md` are the only documents a
-clone carries, so they must stand alone.
+Proposals and their research live under `.agents/pipelines/` and are **not part
+of this repository**: a fresh clone has none of it. This file, `README.md` and
+`CHANGELOG.md` are the only documents a clone carries, so they must stand
+alone. A proposal is the only place a decision is recorded — there are no ADRs,
+design docs or decision logs.
 
 ## Layout
 
@@ -39,8 +41,8 @@ Read a fact here before asserting it — never from memory:
 
 | fact                                          | authoritative source                              |
 | --------------------------------------------- | ------------------------------------------------- |
-| stack, rendering model, test runner           | `.agents/pipelines/adr/0001-stack.md`, `0002-character-rendering.md` (both open, local) |
-| character renderer boundary                   | `.agents/pipelines/adr/0004-character-renderer-slot.md` (local) |
+| stack, rendering route, test runner           | the current proposal, `## Decision` (local)        |
+| character renderer boundary                   | the current proposal, `## Decision` (local)        |
 | Node version, package manager, root scripts   | `package.json`, `.nvmrc`                          |
 | workspace membership                          | `pnpm-workspace.yaml`                             |
 | TypeScript strictness floor                   | `tsconfig.base.json`                              |
@@ -49,8 +51,8 @@ Read a fact here before asserting it — never from memory:
 | CI jobs and gates                             | `.github/workflows/ci.yml`                        |
 | Worker name, routes, bindings, compatibility  | `apps/*/wrangler.jsonc`                           |
 | deploy steps and secrets                      | `.github/workflows/deploy.yml`, `apps/*/wrangler.jsonc` |
-| unfinished decisions and their reasoning      | `.agents/pipelines/adr/` (local)                  |
-| what is in scope, and what counts as done     | the ADR that landed the change, and the local proposal |
+| unfinished decisions and their reasoning      | `.agents/pipelines/proposals/` (local)            |
+| what is in scope, and what counts as done     | `.agents/pipelines/proposals/` (local)            |
 
 When a fact changes, update the table's target in the same change. A fact page
 that disagrees with the code is a bug, not a note.
@@ -84,7 +86,7 @@ CI that `pnpm check` does not run, or the reverse — the two lists are one list
   title is `<type>(<scope>): <summary>`, type from `feat`, `fix`, `refactor`,
   `perf`, `docs`, `test`, `chore`, `ci`, `build`, scope from
   `commitlint.config.mjs`, summary imperative and lower-case apart from
-  acronyms (`ADR`, `WebGL`, `R3F`). Body and footers are free.
+  acronyms (`WebGL`, `R3F`, `Workers`). Body and footers are free.
 - **One logical change per commit.** A commit that needs "and" in its title is
   two commits.
 - **Hooks are checkpoints, CI is the gate.** `pre-commit` formats and lints
@@ -102,21 +104,24 @@ CI that `pnpm check` does not run, or the reverse — the two lists are one list
 
 ## Proposals
 
-Non-trivial work starts as a proposal, not as code. Proposals live in
-`.agents/pipelines/proposals/` and are **gitignored**: they are working
-material for the machine that wrote them, not repository content.
+Small, single-concern work goes straight to a commit (**Direct**). Anything
+that changes behavior, architecture, a contract or the process needs a proposal
+first (**Noted**). The workflow, template, class set and lifecycle are defined
+in `.agents/pipelines/WORKFLOW.md`; the class table is in
+`.agents/pipelines/CLASSIFICATION.md`.
 
-- The proposal owns goal, scope (in and out), acceptance criteria and phases.
+- One class per proposal, encoded by its directory and repeated in the `Class`
+  header. `refactor` and `docs` are not classes.
+- The proposal owns goal, decision, acceptance criteria and evidence.
   `Status: proposed` means no implementation code yet.
-- Anything that must outlive the working copy — the decision, its reasoning,
-  the acceptance criteria that still bind — is written into
-  `.agents/pipelines/adr/` **in the same change**. A fact that exists only under
-  `.agents/` is lost on the next clone. If a fact matters beyond this machine,
-  put it in `AGENTS.md` or the code — those are the only places that travel.
-- Shipped code, docs and commit messages never cite `.agents/`: state the
-  reason inline instead of pointing at a file nobody else has.
+- A decision is recorded in the proposal, nowhere else — there are no ADRs or
+  parallel design documents.
+- Because `.agents/` is local-only, a proposal cannot be linked from shipped
+  code or commits: state the reason inline.
 - An acceptance item is checked with evidence (a screenshot, a recording, a
   command output, a URL), never because the work "feels done".
+- After moving, renaming or restating a proposal, run
+  `node .agents/pipelines/verify-proposals.mjs`.
 
 ## Conventions
 
@@ -159,27 +164,28 @@ material for the machine that wrote them, not repository content.
 - `compatibility_date` in `wrangler.jsonc` moves forward in its own commit,
   with the reason (a binding or API it enables), not bundled into a feature.
 
-## When a decision is still open
+## When something is undecided
 
-The stack is the first open decision; more will follow (rendering model, data
-store, auth, where the API lives). For any of them:
+Read `.agents/pipelines/proposals/` for the current decision and
+`.agents/pipelines/research/` for the evidence behind it. If the answer is not
+there:
 
-1. Read `.agents/pipelines/adr/` for decisions and `.agents/pipelines/research/`
-   for the evidence behind them — the answer may already be recorded.
-2. If it is not, write the ADR in `.agents/pipelines/adr/NNNN-<slug>.md` with
+1. Take the **Noted** track: register a proposal under
+   `.agents/pipelines/proposals/<class>/YYYY-MM-DD-<slug>.md` with
    `Status: proposed`, the options, the tradeoffs and a recommendation.
-3. Ask the user to choose. Do not implement the choice before it is accepted,
-   and do not leave a half-built scaffold behind as a "prototype" on `main`.
-4. When accepted, set `Status: accepted` and update the fact-source table
-   above in the same change.
+2. Ask the user to choose. Do not implement before the proposal says
+   `implemented`, and do not leave a half-built scaffold behind as a
+   "prototype" on `main`.
+3. When it lands, set `Status: implemented` and fix the fact-source table above
+   in the same change.
 
 ## Always follow
 
 - Read the fact source before asserting a fact; verify running behavior
   against the code, not against a plan or an old note.
-- Keep the local ADR current in the same change that makes it stale: an ADR
-  that disagrees with the code is worse than none, because it outlives the
-  reasoning that produced it.
+- Keep the local proposal current in the same change that makes it stale: a
+  proposal that disagrees with the code is worse than none, because it
+  outlives the reasoning that produced it.
 - Do not widen the gate to make a change pass: no skipped tests without an
   issue link, no `--no-verify` in CI, no relaxed `tsconfig` for a package.
 - Leave the tree clean: no commented-out code, no unused exports, no
