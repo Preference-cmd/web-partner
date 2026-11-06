@@ -120,6 +120,9 @@ in `.agents/pipelines/WORKFLOW.md`; the class table is in
   code or commits: state the reason inline.
 - An acceptance item is checked with evidence (a screenshot, a recording, a
   command output, a URL), never because the work "feels done".
+- `.agents/pipelines/proposals/README.md` is the single index of active
+  proposals and their acceptance progress. Update it whenever a proposal is
+  added, moved, restated or changes status.
 - After moving, renaming or restating a proposal, run
   `node .agents/pipelines/verify-proposals.mjs`.
 
