@@ -10,7 +10,9 @@ export default {
     // CI, workspace config); `docs` and `ci` cover those changes on their own.
     // Add a scope when a workspace package is created.
     'scope-enum': [2, 'always', ['web', 'shared', 'repo', 'docs', 'ci', 'deps']],
-    'subject-case': [2, 'always', 'lower-case'],
+    // No subject-case rule: it cannot tell an acronym from a capitalised word,
+    // so it rejects "add the ADR for WebGL" while accepting worse prose. The
+    // imperative, lower-case style is a written convention instead.
     'header-max-length': [2, 'always', 100],
   },
 };
