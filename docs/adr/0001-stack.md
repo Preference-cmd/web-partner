@@ -33,6 +33,25 @@ Partner 是一个部署在 Cloudflare Workers 上的 Web 应用。仓库已按 p
 交互」为主，选 Vite + React + Hono。两者都满足「本地生产同运行时」的约束。
 Next.js 只有在明确需要其生态与 RSC 能力时才值得付适配层成本。
 
+## 调研结论（2026-11-06）
+
+首个产品形态已明确为《伴侣小生命情绪互动 + 状态调试面板》，完整调研见
+[`docs/research/2026-11-06-companion-prototype.md`](../research/2026-11-06-companion-prototype.md)。
+
+它对选型的影响是决定性的：核心体验是一个持续渲染的 WebGL 角色与情绪联动的光影，
+没有内容页、没有 SEO 诉求、没有服务端数据拼装。Astro 的预渲染优势在此为零，
+Next.js 的 RSC 与适配层完全不参与这条路径。
+
+因此**建议选第二项**：Vite + React SPA + Worker API，具体为：
+
+- Vite 8 + React 19.3.x（r3f 要求 `<19.4`，不可放 `^19`）+ TypeScript；
+- `@cloudflare/vite-plugin` 让 `pnpm dev` 直接跑在 `workerd`，与生产同运行时；
+- 单个 Worker 同时承担静态资源与 `/api/*`（Hono 路由），不拆两个 Worker；
+- three + `@react-three/fiber` 渲染角色，素材用 CC0 的 `RobotExpressive.glb`。
+
+副作用：`apps/web` 的 `build` 产出 `dist/`（含 client 与 Worker 产物），`deploy`
+用 `wrangler deploy` 读取构建输出的 `wrangler.json`，与根 `AGENTS.md` 的约定一致。
+
 ## 已定下的部分
 
 无论上面选哪个，以下已经确定，不随本 ADR 变化：
@@ -44,8 +63,8 @@ Next.js 只有在明确需要其生态与 RSC 能力时才值得付适配层成�
 
 ## 决策
 
-（待用户确认后填写。接受时把 `Status` 改为 `accepted`，并同步更新根
-`AGENTS.md` 的 fact sources 表与本页的「建议」段。）
+（待用户确认后填写。接受时把 `Status` 改为 `accepted`，把「建议」替换为最终选择，
+并同步更新根 `AGENTS.md` 的 fact sources 表与本页的「后果」段。）
 
 ## 后果
 
