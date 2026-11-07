@@ -1,20 +1,24 @@
 ---
+import { buttonVariants } from "../components/ui/button";
 import "../styles/global.css";
 ---
+
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="dark">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>登录 · 伴侣小生命</title>
   </head>
   <body>
-    <div class="login-wrap">
-      <div class="login-card">
-        <h1>登录还没做</h1>
-        <p>本期只有占位页，不接任何后端、不发请求。登录一旦进入范围，会先有单独的提案。</p>
-        <a class="ghost" href="/">回到对话</a>
+    <main class="grid min-h-dvh place-items-center bg-background p-6">
+      <div class="w-full max-w-sm rounded-xl border bg-card p-8 text-center text-card-foreground shadow-sm">
+        <h1 class="text-lg font-semibold">登录还没做</h1>
+        <p class="mt-2 text-sm leading-relaxed text-muted-foreground">
+          本期只有占位页，不接任何后端、不发请求。登录一旦进入范围，会先有单独的提案。
+        </p>
+        <a class={`mt-6 ${buttonVariants({ variant: "outline" })}`} href="/">回到对话</a>
       </div>
-    </div>
+    </main>
   </body>
 </html>

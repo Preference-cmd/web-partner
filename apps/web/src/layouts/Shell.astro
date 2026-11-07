@@ -1,87 +1,76 @@
 ---
 import { ClientRouter } from "astro:transitions";
+import DebugPanel from "../components/DebugPanel";
+import Sidebar from "../components/Sidebar";
 import "../styles/global.css";
-import Sidebar from "../components/Sidebar.astro";
-import DebugPanel from "../components/DebugPanel.astro";
 
 interface Props {
   title?: string;
 }
 const { title = "伴侣小生命" } = Astro.props;
 ---
+
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="dark">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <ClientRouter />
   </head>
-  <body>
-    <div class="app">
-      <Sidebar active="chat" />
-      <main class="stage">
-        <div class="vignette"></div>
-        <div class="dust"><i></i><i></i><i></i><i></i><i></i></div>
-        <div class="float-toggles">
-          <button
-            class="fbtn"
-            id="btn-side"
-            type="button"
-            title="收起 / 展开侧边栏"
-            aria-label="收起或展开侧边栏"
-          >
-            <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
-              <path
-                d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-              ></path>
-            </svg>
-          </button>
-          <button class="fbtn" id="btn-panel" type="button" title="调试面板" aria-label="打开调试面板">
-            <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
-              <rect
-                x="2.25"
-                y="3.25"
-                width="11.5"
-                height="9.5"
-                rx="2"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.4"></rect>
-              <path d="M10 3.5v9" stroke="currentColor" stroke-width="1.4"></path>
-            </svg>
-          </button>
+  <body class="overflow-hidden">
+    <div class="flex h-dvh overflow-hidden">
+      <Sidebar client:load active="chat" />
+      <main class="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+        <div
+          class="absolute inset-0 bg-[radial-gradient(900px_620px_at_50%_38%,oklch(0.22_0.02_265),oklch(0.16_0.015_260),oklch(0.13_0.01_255))]"
+        >
         </div>
-        <div class="stage-note"><b>角色立绘占位</b> · 后续替换为 2.5D 素材</div>
-        <div class="figure">
-          <div class="glow"></div>
-          <div class="body"></div>
-          <div class="head"></div>
+        <div
+          class="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_90%_at_50%_40%,transparent_45%,rgba(0,0,0,0.55)_100%)]"
+        >
+        </div>
+        <div class="pointer-events-none absolute inset-0 overflow-hidden opacity-60">
+          <i
+            class="animate-drift absolute top-[30%] left-[18%] size-[3px] rounded-full bg-sky-300/60 [animation-delay:-2s]"
+          ></i>
+          <i
+            class="animate-drift absolute top-[62%] left-[32%] size-[2px] rounded-full bg-sky-300/50 [animation-delay:-5s]"
+          ></i>
+          <i
+            class="animate-drift absolute top-[26%] left-[64%] size-[3px] rounded-full bg-sky-300/60 [animation-delay:-1s]"
+          ></i>
+          <i
+            class="animate-drift absolute top-[58%] left-[74%] size-[2px] rounded-full bg-sky-300/50 [animation-delay:-4s]"
+          ></i>
+          <i
+            class="animate-drift absolute top-[44%] left-[48%] size-[3px] rounded-full bg-sky-300/30 [animation-delay:-7s]"
+          ></i>
+        </div>
+        <p
+          class="pointer-events-none absolute top-5 left-1/2 -translate-x-1/2 text-xs whitespace-nowrap text-muted-foreground"
+        >
+          <b class="font-medium text-foreground/80">角色立绘占位</b> · 后续替换为 2.5D 素材
+        </p>
+        <div
+          class="stage-figure pointer-events-none absolute left-1/2 h-[480px] w-[340px] -translate-x-1/2"
+        >
+          <div
+            class="absolute -bottom-5 left-1/2 h-[180px] w-[420px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(123,167,255,0.28),transparent_70%)] blur-[18px]"
+          >
+          </div>
+          <div
+            class="absolute top-[140px] left-1/2 h-[330px] w-[250px] -translate-x-1/2 rounded-[46%_46%_32%_32%/26%_26%_22%_22%] bg-[linear-gradient(180deg,#2b426e_0%,#1b2a48_55%,#121c30_100%)] shadow-[inset_0_10px_40px_rgba(160,190,255,0.1),0_30px_60px_rgba(0,0,0,0.5)]"
+          >
+          </div>
+          <div
+            class="absolute top-[24px] left-1/2 h-[132px] w-[132px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_38%_32%,#cfe0ff,#7ea2e8_38%,#3c5fa6_72%,#22345c)] shadow-[0_10px_40px_rgba(60,100,190,0.35),inset_0_-12px_26px_rgba(10,20,40,0.35)]"
+          >
+          </div>
         </div>
         <slot />
       </main>
-      <DebugPanel />
+      <DebugPanel client:load />
     </div>
-    <script is:inline>
-      document.addEventListener("astro:page-load", () => {
-        const body = document.body;
-        document.getElementById("btn-side")?.addEventListener("click", () => {
-          body.classList.toggle("sidebar-off");
-        });
-        document.getElementById("btn-panel")?.addEventListener("click", () => {
-          body.classList.toggle("panel-on");
-        });
-        document.getElementById("btn-close")?.addEventListener("click", () => {
-          body.classList.remove("panel-on");
-        });
-        if (window.matchMedia("(max-width: 900px)").matches) {
-          body.classList.add("sidebar-off");
-        }
-      });
-    </script>
   </body>
 </html>

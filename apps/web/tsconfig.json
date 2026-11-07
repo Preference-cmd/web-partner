@@ -4,6 +4,10 @@
   "exclude": ["dist"],
   "compilerOptions": {
     "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
     "types": ["astro/client"]
   }
 }
