@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractDelta, readSse } from './sse';
+import { extractDelta, readSse, readText } from './sse';
 
 const encoder = new TextEncoder();
 
@@ -23,6 +23,20 @@ describe('sse reader', () => {
 
   it('ignores a malformed payload', () => {
     expect(extractDelta('{not json')).toBe('');
+  });
+
+  it('joins plain text chunks split inside a character', async () => {
+    const encoded = encoder.encode('你好');
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoded.slice(0, 4));
+        controller.enqueue(encoded.slice(4));
+        controller.close();
+      },
+    });
+    const chunks: string[] = [];
+    await readText(body, (text) => chunks.push(text));
+    expect(chunks.join('')).toBe('你好');
   });
 
   it('joins chunks split in the middle of an event', async () => {

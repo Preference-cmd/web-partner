@@ -40,6 +40,27 @@ function eachEvent(block: string, onText: (text: string) => void): void {
   }
 }
 
+/** Reads a plain chunked text body, used by the same-origin proxy. */
+export async function readText(
+  stream: ReadableStream<Uint8Array>,
+  onText: (text: string) => void,
+): Promise<void> {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const text = decoder.decode(value, { stream: true });
+      if (text) onText(text);
+    }
+    const tail = decoder.decode();
+    if (tail) onText(tail);
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 /** Reads an SSE body without buffering the whole reply. */
 export async function readSse(
   stream: ReadableStream<Uint8Array>,

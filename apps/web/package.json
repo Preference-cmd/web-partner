@@ -12,8 +12,10 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@ai-sdk/openai-compatible": "3.0.86",
     "@astrojs/cloudflare": "14.4.6",
     "@astrojs/react": "7.1.4",
+    "ai": "7.0.164",
     "astro": "7.4.7",
     "react": "19.3.1",
     "react-dom": "19.3.1",

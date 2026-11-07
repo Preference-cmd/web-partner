@@ -187,6 +187,21 @@ describe('chat controller', () => {
     expect(run.logs.length).toBeGreaterThan(0);
   });
 
+  it('falls back when the model returns an empty stream', async () => {
+    const run = makeHarness({
+      settings: liveSettings,
+      apiKey: 'sk-test',
+      transport: () => Promise.resolve(),
+    });
+    run.controller.hydrate();
+    run.controller.send('晚安');
+    await run.controller.settled();
+    const reply = run.last();
+    expect(reply?.source).toBe('fallback');
+    expect(reply?.content.length).toBeGreaterThan(0);
+    expect(run.logs.some((line) => line.includes('no text'))).toBe(true);
+  });
+
   it('keeps the received text when the stream breaks', async () => {
     const run = makeHarness({
       settings: liveSettings,

@@ -4,14 +4,17 @@ import { streamChat } from './transport';
 
 const encoder = new TextEncoder();
 
-function replyBody(): ReadableStream<Uint8Array> {
+function textBody(chunks: readonly string[]): ReadableStream<Uint8Array> {
   return new ReadableStream<Uint8Array>({
     start(controller) {
-      controller.enqueue(encoder.encode('data: {"choices":[{"delta":{"content":"你好"}}]}\n\n'));
-      controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+      for (const chunk of chunks) controller.enqueue(encoder.encode(chunk));
       controller.close();
     },
   });
+}
+
+function sseBody(): ReadableStream<Uint8Array> {
+  return textBody(['data: {"choices":[{"delta":{"content":"你好"}}]}\n\n', 'data: [DONE]\n\n']);
 }
 
 const request: ChatRequest = {
@@ -29,8 +32,10 @@ afterEach(() => {
 });
 
 describe('chat transport', () => {
-  it('posts the turn to the same-origin proxy', async () => {
-    const fetchMock = vi.fn(async () => new Response(replyBody(), { status: 200 }));
+  it('posts the turn to the same-origin proxy and reads a text stream', async () => {
+    const fetchMock = vi.fn(
+      async () => new Response(textBody(['EMOTION: happy\n你', '好']), { status: 200 }),
+    );
     vi.stubGlobal('fetch', fetchMock);
     const deltas: string[] = [];
     await streamChat(request, new AbortController().signal, (text) => deltas.push(text));
@@ -38,19 +43,24 @@ describe('chat transport', () => {
     const call = fetchMock.mock.calls[0] as unknown as FetchCall;
     if (!call) throw new Error('fetch was not called');
     expect(call[0]).toBe('/api/chat');
+    const headers = call[1].headers as Record<string, string>;
+    expect(headers.authorization).toBeUndefined();
     expect(JSON.parse(String(call[1].body))).toEqual({
       endpoint: 'https://api.example.com/v1',
       apiKey: 'sk-test-abc',
       model: 'demo-model',
       messages: [{ role: 'user', content: 'hi' }],
     });
-    expect(deltas.join('')).toBe('你好');
+    expect(deltas.join('')).toBe('EMOTION: happy\n你好');
   });
 
-  it('calls the endpoint directly when direct mode is on', async () => {
-    const fetchMock = vi.fn(async () => new Response(replyBody(), { status: 200 }));
+  it('calls the endpoint directly and parses its SSE when direct mode is on', async () => {
+    const fetchMock = vi.fn(async () => new Response(sseBody(), { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
-    await streamChat({ ...request, direct: true }, new AbortController().signal, () => undefined);
+    const deltas: string[] = [];
+    await streamChat({ ...request, direct: true }, new AbortController().signal, (text) =>
+      deltas.push(text),
+    );
     const call = fetchMock.mock.calls[0] as unknown as FetchCall;
     if (!call) throw new Error('fetch was not called');
     expect(call[0]).toBe('https://api.example.com/v1/chat/completions');
@@ -59,15 +69,18 @@ describe('chat transport', () => {
     const body = JSON.parse(String(call[1].body)) as Record<string, unknown>;
     expect(body.stream).toBe(true);
     expect(body.max_tokens).toBe(120);
+    expect(deltas.join('')).toBe('你好');
   });
 
-  it('throws on a failed response', async () => {
+  it('throws with the proxy status and reason', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => new Response('nope', { status: 502 })),
+      vi.fn(
+        async () => new Response(JSON.stringify({ error: 'upstream failed' }), { status: 502 }),
+      ),
     );
     await expect(
       streamChat(request, new AbortController().signal, () => undefined),
-    ).rejects.toThrow('502');
+    ).rejects.toThrow('502: {"error":"upstream failed"}');
   });
 });

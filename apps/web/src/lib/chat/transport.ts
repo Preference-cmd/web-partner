@@ -1,4 +1,4 @@
-import { readSse } from './sse';
+import { readSse, readText } from './sse';
 import type { ModelMessage } from './types';
 
 export interface ChatRequest {
@@ -28,32 +28,45 @@ function trimSlash(value: string): string {
  * endpoint's own CORS policy.
  */
 export const streamChat: StreamTransport = async (request, signal, onDelta) => {
-  const payload = request.direct
-    ? {
+  if (request.direct) {
+    const response = await fetch(`${trimSlash(request.endpoint)}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${request.apiKey}`,
+      },
+      body: JSON.stringify({
         model: request.model,
         messages: request.messages,
         stream: true,
         temperature: TEMPERATURE,
         max_tokens: MAX_TOKENS,
-      }
-    : {
-        endpoint: request.endpoint,
-        apiKey: request.apiKey,
-        model: request.model,
-        messages: request.messages,
-      };
-  const headers: Record<string, string> = { 'content-type': 'application/json' };
-  if (request.direct) headers.authorization = `Bearer ${request.apiKey}`;
-  const response = await fetch(
-    request.direct ? `${trimSlash(request.endpoint)}/chat/completions` : '/api/chat',
-    {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(payload),
+      }),
       signal,
-    },
-  );
-  if (!response.ok) throw new Error(`chat request failed with ${response.status}`);
+    });
+    if (!response.ok) throw new Error(`chat request failed with ${response.status}`);
+    if (!response.body) throw new Error('chat response carried no body');
+    await readSse(response.body, onDelta);
+    return;
+  }
+
+  const response = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      endpoint: request.endpoint,
+      apiKey: request.apiKey,
+      model: request.model,
+      messages: request.messages,
+    }),
+    signal,
+  });
+  if (!response.ok) {
+    const reason = await response.text().catch(() => '');
+    throw new Error(
+      `chat request failed with ${response.status}${reason ? `: ${reason.slice(0, 200)}` : ''}`,
+    );
+  }
   if (!response.body) throw new Error('chat response carried no body');
-  await readSse(response.body, onDelta);
+  await readText(response.body, onDelta);
 };

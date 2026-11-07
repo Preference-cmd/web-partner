@@ -237,6 +237,17 @@ export function createChatController(deps: ChatControllerDeps = {}): ChatControl
       await transport(request, signal, (chunk) => parser.push(chunk));
       parser.flush();
       if (turnId !== turn || signal.aborted) return;
+      const current = store.getState().messages.find((message) => message.id === replyId);
+      if (!current?.content) {
+        // An upstream error can surface as an empty stream with a 200 status.
+        log('model returned no text; using a template');
+        const fallback = pickDemoReply(judgeEmotion(userText), previousReply(replyId), random);
+        const emotion = judgeEmotion(fallback);
+        patch(replyId, { content: fallback, emotion });
+        setEmotion(emotion);
+        finalize(replyId, 'fallback');
+        return;
+      }
       finalize(replyId, 'model');
     } catch (error) {
       if (signal.aborted || turnId !== turn) return;
