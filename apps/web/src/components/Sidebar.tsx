@@ -69,9 +69,11 @@ function SidebarBody({
         ) : null}
       </div>
 
-      <Button className="w-full justify-start" data-new-chat onClick={onNewChat}>
-        <PlusIcon data-icon="inline-start" />
-        新对话
+      <Button asChild className="w-full justify-start">
+        <a href="/?new=1" data-new-chat onClick={onNewChat}>
+          <PlusIcon data-icon="inline-start" />
+          新对话
+        </a>
       </Button>
 
       <nav className="flex flex-col gap-1" aria-label="主导航">

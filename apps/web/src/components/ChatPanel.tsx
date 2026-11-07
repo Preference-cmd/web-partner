@@ -192,7 +192,19 @@ export default function ChatPanel() {
     if (!collapsed) syncRef.current?.();
   }, [collapsed]);
 
-  // The sidebar owns the button; this island owns the store, so the guard lives here.
+  // Arriving from another page with ?new=1: the store is hydrated by the effect above,
+  // so the guard can run here and the query never survives a refresh.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('new') !== '1') return;
+    const hasUserMessage = controller.store
+      .getState()
+      .messages.some((message) => message.role === 'user');
+    window.history.replaceState(null, '', window.location.pathname);
+    if (hasUserMessage) setConfirmNew(true);
+    else controller.restart();
+  }, [controller]);
+
+  // The sidebar owns the link; this island owns the store, so the guard lives here.
   useEffect(() => {
     function onClick(event: MouseEvent): void {
       const target =
