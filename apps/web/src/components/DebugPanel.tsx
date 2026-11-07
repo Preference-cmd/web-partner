@@ -49,8 +49,9 @@ function DebugBody({ emotion, mode }: { emotion: Emotion; mode: ChatMode }) {
         </CardHeader>
         <CardContent className="flex flex-col gap-1.5 pt-0 text-xs">
           <Row label="情绪" value={emotion} />
-          <Row label="模式" value={mode === 'live' ? '实际' : '演示'} />
+          <Row label="模式" value={mode === 'live' ? '实时' : '演示'} />
           <Row label="消息" value={`${messages.length} 条`} />
+          <Row label="舞台" value="占位" />
           <Row label="DPR" value={String(dpr)} />
         </CardContent>
       </Card>

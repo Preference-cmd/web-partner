@@ -169,7 +169,7 @@ export function applyModeChip(root: ParentNode, mode: ChatMode): void {
   for (const chip of root.querySelectorAll<HTMLElement>('[data-side-mode]')) {
     chip.dataset.mode = mode;
     const text = chip.querySelector<HTMLElement>('.mode-text');
-    if (text) text.textContent = mode === 'live' ? '实际模式' : '演示模式';
+    if (text) text.textContent = mode === 'live' ? '实时模式' : '演示模式';
   }
 }
 

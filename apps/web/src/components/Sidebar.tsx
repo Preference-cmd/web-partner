@@ -106,7 +106,7 @@ function SidebarBody({
               mode === 'live' ? 'bg-emerald-400' : 'bg-muted-foreground',
             )}
           />
-          <span className="mode-text">{mode === 'live' ? '实际模式' : '演示模式'}</span>
+          <span className="mode-text">{mode === 'live' ? '实时模式' : '演示模式'}</span>
         </Badge>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Avatar className="size-5">

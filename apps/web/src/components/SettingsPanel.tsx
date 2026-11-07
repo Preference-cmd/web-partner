@@ -57,7 +57,7 @@ import {
 
 const MODE_OPTIONS = [
   { id: 'demo', label: '演示' },
-  { id: 'live', label: '实际' },
+  { id: 'live', label: '实时' },
   { id: 'force', label: '强制演示' },
 ] as const;
 
@@ -121,7 +121,7 @@ export default function SettingsPanel() {
     update(next);
     // The chip shows what is in effect, not what was asked for.
     const status = describeMode({ ...settings, ...next }, apiKey);
-    toast.success(status.mode === 'live' ? '已切到实际模式' : `仍是演示模式 · ${status.reason}`);
+    toast.success(status.mode === 'live' ? '已切到实时模式' : `仍是演示模式 · ${status.reason}`);
   }
 
   function changeKey(value: string): void {
@@ -154,6 +154,12 @@ export default function SettingsPanel() {
 
   const status = describeMode(settings, apiKey);
   const live = status.mode === 'live';
+  const wantsLive = settings.mode === 'live' && !settings.forceDemo;
+  const statusLine = live
+    ? `实时模式 · ${status.reason}`
+    : wantsLive
+      ? `演示模式 · 已选实时，${status.reason}`
+      : `演示模式 · ${status.reason}`;
   const hint = endpointHint(settings.endpoint, settings.direct);
   const missingModel = settings.endpoint.trim().length > 0 && !settings.model.trim();
 
@@ -178,9 +184,7 @@ export default function SettingsPanel() {
               live ? 'bg-emerald-400' : 'bg-muted-foreground',
             )}
           />
-          <span>
-            当前生效：{live ? '实际模式' : '演示模式'} · {status.reason}
-          </span>
+          <span>当前生效：{statusLine}</span>
         </div>
 
         <section className="flex flex-col gap-3">
@@ -300,8 +304,10 @@ export default function SettingsPanel() {
                 </ToggleGroup>
                 <FieldDescription>
                   {live
-                    ? '新消息发给你的端点；请求失败或返回空文本时回落到本地模板，气泡标「回落」。'
-                    : '回复来自本地模板，不发任何网络请求。填好端点并选「实际」才会调用模型。'}
+                    ? '新消息发给你的端点；请求失败或返回空文本时改用本地模板，气泡标「模板回复」。'
+                    : wantsLive
+                      ? `已选实时，但${status.reason}。填好端点和 API key 后，新消息才会发给你的端点。`
+                      : '回复来自本地模板，不发任何网络请求。填好端点并选「实时」才会调用模型。'}
                 </FieldDescription>
               </Field>
             </CardContent>
@@ -405,7 +411,7 @@ export default function SettingsPanel() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>清除当前标签页里的 API key？</AlertDialogTitle>
                       <AlertDialogDescription>
-                        清除后实际模式会退回演示，直到重新填入。
+                        清除后实时模式会退回演示，直到重新填入。
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
