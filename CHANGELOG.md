@@ -32,9 +32,23 @@ change states its migration at the top of the release it ships in.
   callers, bodies over 32 KB and turns over 21 messages; it never logs the key.
   The browser receives a plain text chunk stream, and an upstream failure that
   arrives as an empty stream falls back to a template.
+- A settings island on `/settings`: connection (endpoint, model, key, direct
+  toggle), mode (demo / live / forced demo, with the reason the current one is
+  in force), appearance (panel opacity 0.4–0.9, motion preference), per-item
+  data clearing and an about block. Every change saves as it is made, the
+  sidebar mode chip follows it, and the chat page picks it up on the next
+  message.
+
+### Changed
+
+- `partner.settings.v1` also stores `panelAlpha` and `motion`. The addition is
+  compatible: a record without them loads with the defaults (0.62, system), so
+  no migration is needed. The API key still lives only in `sessionStorage`
+  (`partner.secret.v1`).
 
 ### Notes
 
 - The live path uses the AI SDK on the Worker and a plain text stream to the
-  browser; direct mode still reads the endpoint's OpenAI SSE. The settings
-  island and the character renderer are still to come.
+  browser; direct mode still reads the endpoint's OpenAI SSE. The character
+  renderer is still to come; the lighting theme row in the settings is a
+  placeholder until it lands.

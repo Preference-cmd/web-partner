@@ -2,14 +2,15 @@
 
 A web application deployed to Cloudflare Workers.
 
-**Status: demo chat and a live proxy.** `apps/web` carries the Astro app —
-sidebar, full-bleed character stage, floating chat panel and the debug drawer —
-plus a React chat island that streams demo replies, keeps local history and
-tags each reply with an emotion, and `POST /api/chat`, which streams from a
-user-supplied OpenAI-compatible endpoint through the Vercel AI SDK. The settings
-island and the character renderer are still to come. The stack decision lives
-in the local proposal under `.agents/pipelines/`, which is not part of this
-repository.
+**Status: demo chat, settings and a live proxy.** `apps/web` carries the Astro
+app — sidebar, full-bleed character stage, floating chat panel and the debug
+drawer — plus a React chat island that streams demo replies, keeps local history
+and tags each reply with an emotion, a settings island at `/settings` that
+holds the endpoint, the session-only key, the mode and the panel's appearance,
+and `POST /api/chat`, which streams from a user-supplied OpenAI-compatible
+endpoint through the Vercel AI SDK. The character renderer is still to come.
+The stack decision lives in the local proposal under `.agents/pipelines/`,
+which is not part of this repository.
 
 ## Getting started
 
@@ -23,7 +24,7 @@ pnpm check            # the gate: lint, typecheck, test, build
 ## Repository shape
 
 ```text
-apps/web     Astro app — static pages, chat island, Worker shell; one wrangler.jsonc
+apps/web     Astro app — static pages, chat and settings islands, Worker shell; one wrangler.jsonc
 packages/*   code shared between apps (not created yet)
 ```
 
