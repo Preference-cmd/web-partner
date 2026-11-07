@@ -47,24 +47,20 @@ const { title = "伴侣小生命" } = Astro.props;
             class="animate-drift absolute top-[44%] left-[48%] size-[3px] rounded-full bg-sky-300/30 [animation-delay:-7s]"
           ></i>
         </div>
-        <p
-          class="pointer-events-none absolute top-5 left-1/2 -translate-x-1/2 text-xs whitespace-nowrap text-muted-foreground"
-        >
-          <b class="font-medium text-foreground/80">角色立绘占位</b> · 后续替换为 2.5D 素材
-        </p>
+        <h1 class="sr-only">伴侣小生命 · 和角色对话</h1>
         <div
           class="stage-figure pointer-events-none absolute left-1/2 h-[480px] w-[340px] -translate-x-1/2"
         >
           <div
-            class="absolute -bottom-5 left-1/2 h-[180px] w-[420px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(123,167,255,0.28),transparent_70%)] blur-[18px]"
+            class="stage-aura absolute -bottom-5 left-1/2 h-[180px] w-[420px] -translate-x-1/2 rounded-full blur-[18px]"
           >
           </div>
           <div
-            class="absolute top-[140px] left-1/2 h-[330px] w-[250px] -translate-x-1/2 rounded-[46%_46%_32%_32%/26%_26%_22%_22%] bg-[linear-gradient(180deg,#2b426e_0%,#1b2a48_55%,#121c30_100%)] shadow-[inset_0_10px_40px_rgba(160,190,255,0.1),0_30px_60px_rgba(0,0,0,0.5)]"
+            class="stage-body absolute top-[140px] left-1/2 h-[330px] w-[250px] -translate-x-1/2 rounded-[46%_46%_32%_32%/26%_26%_22%_22%] bg-[linear-gradient(180deg,#2b426e_0%,#1b2a48_55%,#121c30_100%)] shadow-[inset_0_10px_40px_rgba(160,190,255,0.1),0_30px_60px_rgba(0,0,0,0.5)]"
           >
           </div>
           <div
-            class="absolute top-[24px] left-1/2 h-[132px] w-[132px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_38%_32%,#cfe0ff,#7ea2e8_38%,#3c5fa6_72%,#22345c)] shadow-[0_10px_40px_rgba(60,100,190,0.35),inset_0_-12px_26px_rgba(10,20,40,0.35)]"
+            class="stage-head absolute top-[24px] left-1/2 h-[132px] w-[132px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_38%_32%,#cfe0ff,#7ea2e8_38%,#3c5fa6_72%,#22345c)] shadow-[0_10px_40px_rgba(60,100,190,0.35),inset_0_-12px_26px_rgba(10,20,40,0.35)]"
           >
           </div>
         </div>

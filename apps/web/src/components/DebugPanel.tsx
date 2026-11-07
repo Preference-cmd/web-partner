@@ -21,7 +21,7 @@ const EMOTIONS: ReadonlyArray<{ id: Emotion; label: string }> = [
 
 const LIGHTS = ['冷夜空', '暖黄昏', '深夜', '清晨'] as const;
 
-const SOURCE: Record<string, string> = { demo: '演示', model: '模型', fallback: '回落' };
+const SOURCE: Record<string, string> = { demo: '演示', model: '模型', fallback: '模板回复' };
 
 function Row({ label, value }: { label: string; value: string }) {
   return (

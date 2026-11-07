@@ -101,8 +101,40 @@
 
 /* The stage keeps the figure clear of the panel; the chat island writes --panel-lift. */
 .stage-figure {
+  --stage-filter: none;
+  --stage-glow: rgba(123, 167, 255, 0.38);
+  --stage-breathe: 6s;
+
   bottom: calc(14% + var(--panel-lift, 0px));
   transition: bottom 180ms ease;
+  animation: breathe var(--stage-breathe) ease-in-out infinite;
+}
+
+/* The chat island writes --stage-mood through data-emotion; the stand-in figure reads it. */
+html[data-emotion="happy"] .stage-figure {
+  --stage-filter: sepia(0.28) saturate(1.25);
+  --stage-glow: rgba(255, 201, 128, 0.55);
+}
+
+html[data-emotion="shy"] .stage-figure {
+  --stage-filter: hue-rotate(28deg) saturate(1.15);
+  --stage-glow: rgba(255, 150, 190, 0.5);
+}
+
+html[data-emotion="sleepy"] .stage-figure {
+  --stage-filter: saturate(0.55) brightness(0.9);
+  --stage-glow: rgba(148, 163, 200, 0.34);
+  --stage-breathe: 9s;
+}
+
+.stage-aura {
+  background: radial-gradient(ellipse at center, var(--stage-glow), transparent 70%);
+}
+
+.stage-body,
+.stage-head {
+  filter: var(--stage-filter);
+  transition: filter 600ms ease;
 }
 
 @media (prefers-reduced-motion: reduce) {

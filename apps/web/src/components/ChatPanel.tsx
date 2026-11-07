@@ -40,13 +40,7 @@ import { Button } from '@/components/ui/button';
 import { getChatController } from '@/lib/chat/controller';
 import { QUICK_ACTIONS } from '@/lib/chat/demo';
 import { applyAppearance, loadSettings, readApiKey, resolveMode } from '@/lib/chat/settings';
-import type { Message as ChatMessage, ChatMode, Emotion, MessageSource } from '@/lib/chat/types';
-
-const SOURCE_LABEL: Record<MessageSource, string> = {
-  demo: '演示',
-  model: '模型',
-  fallback: '回落',
-};
+import type { Message as ChatMessage, ChatMode, Emotion } from '@/lib/chat/types';
 
 const EMOTION_LABEL: Record<Emotion, string> = {
   idle: '平静',
@@ -89,10 +83,15 @@ function MessageRow({ message }: { message: ChatMessage }) {
   }
 
   return (
-    <Message from={mine ? 'user' : 'assistant'}>
-      <div className="text-[10px] text-muted-foreground">
-        {mine ? '你' : SOURCE_LABEL[message.source ?? 'demo']}
-        {message.status === 'aborted' ? ' · 已中断' : ''}
+    <Message className={cn('relative', !mine && 'pr-9')} from={mine ? 'user' : 'assistant'}>
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <span>{mine ? '你' : '小鲸'}</span>
+        {!mine && message.source === 'fallback' ? (
+          <span className="rounded border px-1 text-xs" title="模型没有响应，这一条由本地模板生成">
+            模板回复
+          </span>
+        ) : null}
+        {message.status === 'aborted' ? <span>· 已中断</span> : null}
       </div>
       {interrupted ? null : (
         <MessageContent className="whitespace-pre-wrap">
@@ -233,10 +232,10 @@ export default function ChatPanel() {
       <div className="flex items-center justify-between gap-2 px-4 pt-3">
         <div className="flex items-center gap-2">
           <span className={cn('size-2 rounded-full', EMOTION_DOT[emotion])} aria-hidden />
-          <span className="sr-only">情绪：{EMOTION_LABEL[emotion]}</span>
           <span className="text-sm font-medium">小鲸</span>
-          <Badge variant={mode === 'live' ? 'default' : 'secondary'} className="text-[10px]">
-            {mode === 'live' ? '实际' : '演示'}
+          <span className="text-xs text-muted-foreground">{EMOTION_LABEL[emotion]}</span>
+          <Badge variant={mode === 'live' ? 'default' : 'secondary'} className="text-xs">
+            {mode === 'live' ? '实时' : '演示'}
           </Badge>
         </div>
         <div className="flex items-center gap-1">
