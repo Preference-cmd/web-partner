@@ -118,6 +118,7 @@ export default function ChatPanel() {
   const emotion = useStore(controller.store, (state) => state.emotion);
   const [draft, setDraft] = useState('');
   const [collapsed, setCollapsed] = useState(false);
+  const [confirmNew, setConfirmNew] = useState(false);
   const [mode, setMode] = useState<ChatMode>('demo');
   const panelRef = useRef<HTMLElement>(null);
   const syncRef = useRef<(() => void) | null>(null);
@@ -188,23 +189,18 @@ export default function ChatPanel() {
     if (!collapsed) syncRef.current?.();
   }, [collapsed]);
 
-  // "新对话" is a link: intercepted here, or honoured after landing on /?new=1.
-  useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('new') !== '1') return;
-    controller.restart();
-    window.history.replaceState(null, '', window.location.pathname);
-  }, [controller]);
-
+  // The sidebar owns the button; this island owns the store, so the guard lives here.
   useEffect(() => {
     function onClick(event: MouseEvent): void {
       const target =
         event.target instanceof Element ? event.target.closest('[data-new-chat]') : null;
       if (!target) return;
       event.preventDefault();
-      controller.restart();
-      if (window.location.search) {
-        window.history.replaceState(null, '', window.location.pathname);
-      }
+      const hasUserMessage = controller.store
+        .getState()
+        .messages.some((message) => message.role === 'user');
+      if (hasUserMessage) setConfirmNew(true);
+      else controller.restart();
     }
     document.addEventListener('click', onClick);
     return () => document.removeEventListener('click', onClick);
@@ -281,6 +277,19 @@ export default function ChatPanel() {
           </Button>
         </div>
       </div>
+
+      <AlertDialog open={confirmNew} onOpenChange={setConfirmNew}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>开始新对话？</AlertDialogTitle>
+            <AlertDialogDescription>现在这段对话会被清掉，清掉就回不来了。</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={() => controller.restart()}>新对话</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Kept mounted while collapsed: the resize observer below holds its node. */}
       <Conversation

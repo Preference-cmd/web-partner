@@ -42,11 +42,13 @@ function SidebarBody({
   license,
   mode,
   onCollapse,
+  onNewChat,
 }: {
   active: 'chat' | 'settings';
   license: boolean;
   mode: ChatMode;
   onCollapse?: () => void;
+  onNewChat?: () => void;
 }) {
   return (
     <div className="flex h-full flex-col gap-3 p-3">
@@ -70,11 +72,9 @@ function SidebarBody({
         ) : null}
       </div>
 
-      <Button asChild className="w-full justify-start">
-        <a href="/?new=1" data-new-chat>
-          <PlusIcon data-icon="inline-start" />
-          新对话
-        </a>
+      <Button className="w-full justify-start" data-new-chat onClick={onNewChat}>
+        <PlusIcon data-icon="inline-start" />
+        新对话
       </Button>
 
       <nav className="flex flex-col gap-1" aria-label="主导航">
@@ -184,7 +184,12 @@ export default function Sidebar({ active = 'chat', license = true }: SidebarProp
       <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
         <SheetContent side="left" className="w-72 p-0" aria-describedby={undefined}>
           <SheetTitle className="sr-only">侧边栏</SheetTitle>
-          <SidebarBody active={active} license={license} mode={mode} />
+          <SidebarBody
+            active={active}
+            license={license}
+            mode={mode}
+            onNewChat={() => setDrawerOpen(false)}
+          />
         </SheetContent>
       </Sheet>
     </TooltipProvider>
