@@ -159,7 +159,7 @@ export default function SettingsPanel() {
 
   return (
     <>
-      <Toaster position="top-center" />
+      <Toaster position="bottom-right" />
       <div className="flex flex-col gap-8">
         <header className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold tracking-tight">设置</h1>

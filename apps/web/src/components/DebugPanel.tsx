@@ -99,7 +99,7 @@ function DebugBody({ emotion, mode }: { emotion: Emotion; mode: ChatMode }) {
           ) : (
             messages.slice(-4).map((message) => (
               <div key={message.id} className="flex items-start gap-2">
-                <Badge variant="outline" className="shrink-0 text-[10px]">
+                <Badge variant="outline" className="shrink-0 text-xs">
                   {message.role === 'user' ? '你' : (SOURCE[message.source ?? 'demo'] ?? '演示')}
                 </Badge>
                 <span className="line-clamp-2 text-muted-foreground">{message.content || '…'}</span>

@@ -56,7 +56,7 @@ const EMOTION_DOT: Record<Emotion, string> = {
   sleepy: 'bg-slate-400',
 };
 
-function MessageRow({ message }: { message: ChatMessage }) {
+function MessageRow({ message, index }: { message: ChatMessage; index: number }) {
   const mine = message.role === 'user';
   const waiting = !mine && message.status === 'streaming' && message.content.length === 0;
   // An interrupted reply with no text is news, not a bubble.
@@ -100,8 +100,12 @@ function MessageRow({ message }: { message: ChatMessage }) {
         </MessageContent>
       )}
       {!mine && message.content.length > 0 && !waiting ? (
-        <MessageActions>
-          <MessageAction tooltip={copied ? '已复制' : '复制回复'} onClick={copy}>
+        <MessageActions className="absolute top-0 right-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100">
+          <MessageAction
+            label={`复制第 ${index + 1} 条回复`}
+            tooltip={copied ? '已复制' : '复制回复'}
+            onClick={copy}
+          >
             {copied ? <CheckIcon className="size-3.5" /> : <CopyIcon className="size-3.5" />}
           </MessageAction>
         </MessageActions>
@@ -145,7 +149,7 @@ export default function ChatPanel() {
     const root = document.documentElement;
     const sync = (): void => {
       const narrow = window.innerWidth < 768;
-      const cap = Math.min(root.clientHeight * (narrow ? 0.52 : 0.62), narrow ? 520 : 640);
+      const cap = Math.min(root.clientHeight * (narrow ? 0.52 : 0.72), narrow ? 520 : 720);
       const conversation = node.querySelector<HTMLElement>('[aria-label="对话记录"]');
       const content = conversation?.firstElementChild?.firstElementChild as HTMLElement | null;
       if (conversation && content) {
@@ -205,7 +209,33 @@ export default function ChatPanel() {
     return () => document.removeEventListener('click', onClick);
   }, [controller]);
 
+  // Reaching the composer should not cost fifteen tabs.
+  useEffect(() => {
+    function focusComposer(): void {
+      panelRef.current?.querySelector<HTMLTextAreaElement>('textarea')?.focus();
+    }
+    function onKeyDown(event: KeyboardEvent): void {
+      const target = event.target;
+      const typing =
+        target instanceof HTMLElement &&
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        focusComposer();
+        return;
+      }
+      if (!typing && event.key === '/') {
+        event.preventDefault();
+        focusComposer();
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   const streaming = status === 'streaming';
+  const last = messages[messages.length - 1];
+  const aborted = last?.role === 'assistant' && last.status === 'aborted';
   const lastReply = [...messages]
     .reverse()
     .find((message) => message.role === 'assistant' && message.content);
@@ -222,11 +252,17 @@ export default function ChatPanel() {
         backgroundColor:
           'color-mix(in oklab, var(--card) calc(var(--panel-alpha, 0.62) * 100%), transparent)',
       }}
-      className="absolute bottom-3 left-1/2 z-20 flex max-h-[min(52vh,520px)] w-[min(760px,calc(100%-1.5rem))] -translate-x-1/2 flex-col overflow-hidden rounded-xl border text-card-foreground shadow-2xl backdrop-blur-xl md:bottom-6 md:max-h-[min(62vh,640px)] md:w-[min(760px,calc(100%-3rem))]"
+      className="absolute bottom-3 left-1/2 z-20 flex max-h-[min(52vh,520px)] w-[min(760px,calc(100%-1.5rem))] -translate-x-1/2 flex-col overflow-hidden rounded-xl border text-card-foreground shadow-2xl backdrop-blur-xl md:bottom-6 md:max-h-[min(72vh,720px)] md:w-[min(760px,calc(100%-3rem))]"
     >
       {/* Announce the outcome, not every streamed character. */}
       <p className="sr-only" role="status" aria-live="polite">
-        {streaming ? '小鲸正在回复' : lastReply ? `回复完成：${lastReply.content}` : ''}
+        {streaming
+          ? '小鲸正在回复'
+          : aborted
+            ? '回复已中断'
+            : lastReply
+              ? `回复完成：${lastReply.content}`
+              : ''}
       </p>
 
       <div className="flex items-center justify-between gap-2 px-4 pt-3">
@@ -305,7 +341,9 @@ export default function ChatPanel() {
               className="p-2"
             />
           ) : (
-            messages.map((message) => <MessageRow key={message.id} message={message} />)
+            messages.map((message, index) => (
+              <MessageRow key={message.id} message={message} index={index} />
+            ))
           )}
         </ConversationContent>
         <ConversationScrollButton aria-label="跳到最新消息" />
@@ -341,6 +379,7 @@ export default function ChatPanel() {
             className="max-h-32 min-h-9 text-sm"
             placeholder="和它说点什么…"
             aria-label="消息"
+            aria-keyshortcuts="Meta+K Control+K /"
             onChange={(event) => setDraft(event.target.value)}
           />
         </PromptInputBody>

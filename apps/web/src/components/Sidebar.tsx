@@ -30,9 +30,6 @@ function Brand() {
     <div className="flex items-center gap-2 px-1 pt-1">
       <span className="size-6 shrink-0 rounded-md bg-gradient-to-br from-sky-300 via-blue-500 to-blue-900 shadow-[0_0_18px_rgba(96,165,250,0.35)]" />
       <span className="truncate text-sm font-semibold">伴侣小生命</span>
-      <Badge variant="outline" className="ml-auto text-[10px] text-muted-foreground">
-        0.1.0
-      </Badge>
     </div>
   );
 }
@@ -113,12 +110,12 @@ function SidebarBody({
         </Badge>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Avatar className="size-5">
-            <AvatarFallback className="text-[10px]">我</AvatarFallback>
+            <AvatarFallback className="text-xs">我</AvatarFallback>
           </Avatar>
           本机用户
         </div>
         {license ? (
-          <p className="text-[10px] leading-relaxed text-muted-foreground/70">
+          <p className="text-xs leading-relaxed text-muted-foreground">
             非官方、非商业演示
             <br />
             角色素材 CC BY-NC-SA 4.0

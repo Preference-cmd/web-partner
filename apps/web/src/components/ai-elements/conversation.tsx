@@ -1,7 +1,7 @@
 import { cn } from 'cn';
 import { ArrowDownIcon } from 'lucide-react';
 import type { ComponentProps } from 'react';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { StickToBottom, useStickToBottomContext } from 'use-stick-to-bottom';
 import { Button } from '@/components/ui/button';
 
@@ -63,13 +63,22 @@ export const ConversationScrollButton = ({
   ...props
 }: ConversationScrollButtonProps) => {
   const { isAtBottom, scrollToBottom } = useStickToBottomContext();
+  const [jumping, setJumping] = useState(false);
+
+  // The spring takes about a second; keep the control around until it lands.
+  useEffect(() => {
+    if (!jumping) return;
+    const timer = window.setTimeout(() => setJumping(false), 1500);
+    return () => window.clearTimeout(timer);
+  }, [jumping]);
 
   const handleScrollToBottom = useCallback(() => {
+    setJumping(true);
     scrollToBottom();
   }, [scrollToBottom]);
 
   return (
-    !isAtBottom && (
+    (!isAtBottom || jumping) && (
       <Button
         className={cn('absolute bottom-4 left-[50%] translate-x-[-50%] rounded-full', className)}
         onClick={handleScrollToBottom}
