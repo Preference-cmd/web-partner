@@ -24,8 +24,37 @@ const { title = "伴侣小生命" } = Astro.props;
         <div class="vignette"></div>
         <div class="dust"><i></i><i></i><i></i><i></i><i></i></div>
         <div class="float-toggles">
-          <button class="fbtn" id="btn-side" type="button" title="收起 / 展开侧边栏">☰</button>
-          <button class="fbtn" id="btn-panel" type="button" title="调试面板">▤</button>
+          <button
+            class="fbtn"
+            id="btn-side"
+            type="button"
+            title="收起 / 展开侧边栏"
+            aria-label="收起或展开侧边栏"
+          >
+            <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
+              <path
+                d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+              ></path>
+            </svg>
+          </button>
+          <button class="fbtn" id="btn-panel" type="button" title="调试面板" aria-label="打开调试面板">
+            <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
+              <rect
+                x="2.25"
+                y="3.25"
+                width="11.5"
+                height="9.5"
+                rx="2"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.4"></rect>
+              <path d="M10 3.5v9" stroke="currentColor" stroke-width="1.4"></path>
+            </svg>
+          </button>
         </div>
         <div class="stage-note"><b>角色立绘占位</b> · 后续替换为 2.5D 素材</div>
         <div class="figure">

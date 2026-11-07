@@ -90,6 +90,9 @@ export default function ChatPanel() {
   }, [messages]);
 
   const streaming = status === 'streaming';
+  const lastReply = [...messages]
+    .reverse()
+    .find((message) => message.role === 'assistant' && message.content);
   const pending = messages.find((message) => message.status === 'streaming');
   const canStop = streaming && (pending?.content.length ?? 0) > 0;
 
@@ -113,23 +116,49 @@ export default function ChatPanel() {
 
   return (
     <section ref={panelRef} className={`chat${collapsed ? ' collapsed' : ''}`} aria-label="对话">
+      {/* Announce the outcome, not every streamed character. */}
+      <p className="sr-only" role="status" aria-live="polite">
+        {streaming ? '小鲸正在回复' : lastReply ? `回复完成：${lastReply.content}` : ''}
+      </p>
       <div className="chat-head">
         <div className="who">
           <span className="dot" data-emotion={emotion} />
           小鲸 · 在线
         </div>
         <div className="head-actions">
-          <button className="clear" type="button" title="清空对话" onClick={clear}>
+          <button
+            className="clear"
+            type="button"
+            title="清空对话"
+            aria-label="清空对话"
+            onClick={clear}
+          >
             清空
           </button>
           <button
             className="chev"
             type="button"
             title="收起消息区"
+            aria-label="收起或展开消息区"
             aria-expanded={!collapsed}
             onClick={() => setCollapsed((value) => !value)}
           >
-            {collapsed ? '▸' : '▾'}
+            <svg
+              className="chev-icon"
+              viewBox="0 0 16 16"
+              width="12"
+              height="12"
+              aria-hidden="true"
+            >
+              <path
+                d="M4 6.5 8 10.5 12 6.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </button>
         </div>
       </div>
@@ -137,6 +166,11 @@ export default function ChatPanel() {
       <div
         className="msgs"
         ref={listRef}
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrollable log needs focus so the keyboard can scroll it
+        tabIndex={0}
+        role="log"
+        aria-label="对话记录"
+        aria-live="off"
         onScroll={(event) => {
           const node = event.currentTarget;
           stick.current = node.scrollHeight - node.scrollTop - node.clientHeight < 24;
