@@ -7,11 +7,10 @@
 **Partner** is a web application deployed to **Cloudflare Workers**. It is a
 pnpm workspace: deployable apps live in `apps/*`, shared code in `packages/*`.
 
-The stack and the character renderer are settled in the local proposal but
-**not yet approved**; `Status: proposed` means no implementation code. Until it
-flips to `implemented`, do not add a framework dependency, scaffold `apps/web`,
-or assume a rendering model. The workflow below is stack-neutral and already
-works.
+The stack and the character renderer are settled in the local proposal and
+approved; `apps/web` implements the shell against it. `Status: proposed` means the
+proposal is still open — build against it until its `## Accept` items are checked
+with evidence, then flip to `implemented`. The workflow below is stack-neutral.
 
 Proposals and their research live under `.agents/pipelines/` and are **not part
 of this repository**: a fresh clone has none of it. This file, `README.md` and
@@ -22,7 +21,7 @@ design docs or decision logs.
 ## Layout
 
 ```text
-apps/                  # deployable Workers apps; one wrangler.jsonc each (not created yet)
+apps/web/              # Astro app: static pages, shell, Worker entry (chat logic pending)
 packages/              # shared code: types, clients, UI kit (not created yet)
 scripts/               # repo helpers run by hooks, CI or a package
 .github/workflows/     # ci.yml (the gate), deploy.yml (manual Workers release)
@@ -113,7 +112,8 @@ in `.agents/pipelines/WORKFLOW.md`; the class table is in
 - One class per proposal, encoded by its directory and repeated in the `Class`
   header. `refactor` and `docs` are not classes.
 - The proposal owns goal, decision, acceptance criteria and evidence.
-  `Status: proposed` means no implementation code yet.
+  `Status: proposed` means acceptance is not met yet; implementation may be in
+  progress.
 - A decision is recorded in the proposal, nowhere else — there are no ADRs or
   parallel design documents.
 - Because `.agents/` is local-only, a proposal cannot be linked from shipped
@@ -176,11 +176,10 @@ there:
 1. Take the **Noted** track: register a proposal under
    `.agents/pipelines/proposals/<class>/YYYY-MM-DD-<slug>.md` with
    `Status: proposed`, the options, the tradeoffs and a recommendation.
-2. Ask the user to choose. Do not implement before the proposal says
-   `implemented`, and do not leave a half-built scaffold behind as a
-   "prototype" on `main`.
-3. When it lands, set `Status: implemented` and fix the fact-source table above
-   in the same change.
+2. Ask the user to choose. Once they approve, implement against the proposal;
+   do not leave a half-built scaffold behind as a "prototype" on `main`.
+3. When its `## Accept` items are met, set `Status: implemented` and fix the
+   fact-source table above in the same change.
 
 ## Always follow
 

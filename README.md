@@ -2,10 +2,11 @@
 
 A web application deployed to Cloudflare Workers.
 
-**Status: workflow only.** The repository defines how work is done; the
-application itself has not been scaffolded, because the stack decision is
-still awaiting approval. That decision lives in the local proposal under
-`.agents/pipelines/`, which is not part of this repository.
+**Status: layout shell.** `apps/web` carries the Astro shell — sidebar, full-bleed
+character stage, floating chat panel and the debug drawer — plus the Worker
+config. Chat logic, `/api/chat` and the character renderer are still to come.
+The stack decision lives in the local proposal under `.agents/pipelines/`, which
+is not part of this repository.
 
 ## Getting started
 
@@ -19,8 +20,8 @@ pnpm check            # the gate: lint, typecheck, test, build
 ## Repository shape
 
 ```text
-apps/*       deployable Workers applications — one wrangler.jsonc each
-packages/*   code shared between apps
+apps/web     Astro app — static pages plus the Worker shell; one wrangler.jsonc
+packages/*   code shared between apps (not created yet)
 ```
 
 Proposals and their research notes are working material kept outside the
@@ -39,8 +40,8 @@ CI repeats the full gate and runs commitlint over the pushed range.
 ## Deploying
 
 `Deploy` (`.github/workflows/deploy.yml`) is manual and requires the
-`CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets. It
-refuses to run until an app exists under `apps/`.
+`CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets. It deploys `apps/web` (Worker `partner-web`) once
+the secrets are set.
 
 ## License
 
