@@ -2,6 +2,7 @@ import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { useStore } from 'zustand';
 import { getChatController } from '../lib/chat/controller';
 import { QUICK_ACTIONS } from '../lib/chat/demo';
+import { applyAppearance, loadSettings } from '../lib/chat/settings';
 import type { Message, MessageSource } from '../lib/chat/types';
 
 const SOURCE_LABEL: Record<MessageSource, string> = {
@@ -54,6 +55,10 @@ export default function ChatPanel() {
   useEffect(() => {
     document.documentElement.dataset.emotion = emotion;
   }, [emotion]);
+
+  useEffect(() => {
+    applyAppearance(document.documentElement, loadSettings(window.localStorage));
+  }, []);
 
   useEffect(() => {
     const node = listRef.current;

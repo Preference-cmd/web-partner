@@ -222,6 +222,88 @@ body.panel-on { --right-w: 360px; }
 .login-card .ghost { display: inline-block; padding: 8px 14px; border-radius: 9px; border: 1px solid var(--line); color: #c3c9d4; font-size: 12.5px; }
 .login-card .ghost:hover { background: rgba(255, 255, 255, 0.05); }
 
+/* settings island */
+.set-status {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 0 24px; padding: 10px 14px;
+  font-size: 12.5px; color: #c6ccd7;
+  border: 1px solid var(--line); border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+.set-status .dot { background: #8f96a3; box-shadow: none; }
+.set-status[data-mode="live"] .dot { background: #7fe0a8; box-shadow: 0 0 8px #7fe0a8; }
+.set-status .flash { margin-left: auto; font-size: 11.5px; color: #8fd6a8; }
+
+.set-field {
+  padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+.set-field + .set-field,
+.set-field + .set-switch,
+.set-switch + .set-field { margin-top: 8px; }
+.set-field > label,
+.set-field > .field-label {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  margin-bottom: 8px; font-size: 12.5px; color: #cfd4dd;
+}
+.set-field > label b { font-weight: 500; color: #9fb4d8; font-variant-numeric: tabular-nums; }
+.set .help { margin: 6px 0 0; font-size: 11.5px; line-height: 1.6; color: var(--dim); }
+.set .warn { margin: 6px 0 0; font-size: 11.5px; line-height: 1.6; color: #f0b48a; }
+.set .text {
+  width: 100%; padding: 9px 11px; border-radius: 9px; outline: 0;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--text); font: inherit; font-size: 13px;
+}
+.set .text:focus { border-color: rgba(123, 167, 255, 0.55); box-shadow: 0 0 0 3px rgba(123, 167, 255, 0.12); }
+.set .text::placeholder { color: #596170; }
+.set .secret { display: flex; align-items: center; gap: 8px; }
+.set .secret .text { flex: 1; min-width: 0; }
+.set input[type="range"] { width: 100%; accent-color: var(--accent); }
+.set-switch {
+  display: flex; align-items: center; justify-content: space-between; gap: 18px;
+  padding: 12px 14px; font-size: 12.5px; color: #cfd4dd;
+  border: 1px solid var(--line); border-radius: 12px; background: rgba(255, 255, 255, 0.02);
+}
+.set-switch > span { display: flex; flex-direction: column; gap: 4px; }
+.set-switch .help { margin: 0; }
+.set-switch input {
+  position: relative; flex: 0 0 auto; appearance: none; cursor: pointer;
+  width: 38px; height: 22px; border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12); background: rgba(255, 255, 255, 0.06);
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+.set-switch input::before {
+  content: ""; position: absolute; top: 2px; left: 2px;
+  width: 16px; height: 16px; border-radius: 50%; background: #8f96a3;
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+.set-switch input:checked { background: rgba(123, 167, 255, 0.28); border-color: rgba(123, 167, 255, 0.5); }
+.set-switch input:checked::before { transform: translateX(16px); background: #cfe0ff; }
+.set-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.set .ghost {
+  padding: 8px 13px; border-radius: 10px; border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03); color: #c3c9d4; font-size: 12.5px; cursor: pointer;
+}
+.set .ghost:hover { background: rgba(255, 255, 255, 0.07); border-color: rgba(255, 255, 255, 0.14); }
+
+.mode[data-mode="live"] { color: #cfe9d9; background: rgba(127, 224, 168, 0.12); border-color: rgba(127, 224, 168, 0.28); }
+.mode[data-mode="live"] .dot { background: #7fe0a8; box-shadow: 0 0 8px #7fe0a8; }
+
+/* motion preference: the OS setting unless the user picks one */
+@media (prefers-reduced-motion: reduce) {
+  .dust i,
+  .typing i,
+  .sidebar,
+  .right,
+  .chat { animation: none; transition: none; }
+}
+html[data-motion="reduced"] .dust i,
+html[data-motion="reduced"] .typing i { animation: none; }
+html[data-motion="reduced"] .sidebar,
+html[data-motion="reduced"] .right,
+html[data-motion="reduced"] .chat { transition: none; }
+
 @media (max-width: 1439px) {
   .right { position: absolute; right: 0; top: 0; height: 100%; z-index: 30; box-shadow: -20px 0 60px rgba(0, 0, 0, 0.5); }
   body.panel-on .chat { width: min(720px, calc(100% - 392px)); left: calc(50% - 180px); }

@@ -24,7 +24,10 @@ const { active = "chat", license = true } = Astro.props;
     </div>
     <div class="spacer"></div>
     <div class="side-foot">
-      <span class="mode"><span class="dot"></span>演示模式</span>
+      <span class="mode" data-side-mode data-mode="demo">
+        <span class="dot"></span>
+        <span class="mode-text">演示模式</span>
+      </span>
       <div class="user"><div class="avatar"></div>Pref2rence</div>
       {license && (
         <div class="license">非官方、非商业演示<br />角色素材 CC BY-NC-SA 4.0</div>
@@ -32,3 +35,19 @@ const { active = "chat", license = true } = Astro.props;
     </div>
   </div>
 </aside>
+
+<script>
+  import { applyModeChip, describeMode, loadSettings, readApiKey } from "../lib/chat/settings";
+
+  // The chip is static HTML; the mode lives in storage, so it is read on every page load.
+  function syncMode(): void {
+    const mode = describeMode(
+      loadSettings(window.localStorage),
+      readApiKey(window.sessionStorage, window.localStorage),
+    ).mode;
+    applyModeChip(document, mode);
+  }
+
+  document.addEventListener("astro:page-load", syncMode);
+  syncMode();
+</script>
