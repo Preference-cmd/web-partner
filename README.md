@@ -2,11 +2,12 @@
 
 A web application deployed to Cloudflare Workers.
 
-**Status: layout shell.** `apps/web` carries the Astro shell — sidebar, full-bleed
-character stage, floating chat panel and the debug drawer — plus the Worker
-config. Chat logic, `/api/chat` and the character renderer are still to come.
-The stack decision lives in the local proposal under `.agents/pipelines/`, which
-is not part of this repository.
+**Status: demo chat.** `apps/web` carries the Astro app — sidebar, full-bleed
+character stage, floating chat panel and the debug drawer — plus a React chat
+island that streams demo replies, keeps local history and tags each reply with
+an emotion. `/api/chat`, the settings island and the character renderer are
+still to come. The stack decision lives in the local proposal under
+`.agents/pipelines/`, which is not part of this repository.
 
 ## Getting started
 
@@ -20,7 +21,7 @@ pnpm check            # the gate: lint, typecheck, test, build
 ## Repository shape
 
 ```text
-apps/web     Astro app — static pages plus the Worker shell; one wrangler.jsonc
+apps/web     Astro app — static pages, chat island, Worker shell; one wrangler.jsonc
 packages/*   code shared between apps (not created yet)
 ```
 

@@ -19,7 +19,15 @@ change states its migration at the top of the release it ships in.
   `wrangler.jsonc` exist.
 - An open proposal for the stack, kept with the other working material under
   `.agents/pipelines/` (not part of the repository).
+- A chat island on `/`: demo replies stream token by token, three quick
+  actions answer locally, a stop control keeps the partial reply, and history
+  persists in this browser (`partner.chat.v1`, 100 messages). Each reply is
+  labelled `demo`, `model` or `fallback`; the live path falls back to a
+  template until `/api/chat` exists.
+- Client-side navigation between `/` and `/settings` (`ClientRouter`), so a
+  running reply survives the page change; a full reload marks it interrupted.
 
 ### Notes
 
-- No application code exists yet; the stack decision is the next step.
+- `/api/chat` does not exist yet, so live mode currently ends in a template
+  fallback; the character renderer and the settings island are still to come.

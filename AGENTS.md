@@ -8,9 +8,10 @@
 pnpm workspace: deployable apps live in `apps/*`, shared code in `packages/*`.
 
 The stack and the character renderer are settled in the local proposal and
-approved; `apps/web` implements the shell against it. `Status: proposed` means the
-proposal is still open — build against it until its `## Accept` items are checked
-with evidence, then flip to `implemented`. The workflow below is stack-neutral.
+approved; `apps/web` implements the shell and the demo chat against it.
+`Status: proposed` means the proposal is still open — build against it until
+its `## Accept` items are checked with evidence, then flip to `implemented`.
+The workflow below is stack-neutral.
 
 Proposals and their research live under `.agents/pipelines/` and are **not part
 of this repository**: a fresh clone has none of it. This file, `README.md` and
@@ -21,7 +22,7 @@ design docs or decision logs.
 ## Layout
 
 ```text
-apps/web/              # Astro app: static pages, shell, Worker entry (chat logic pending)
+apps/web/              # Astro app: static pages, chat island, Worker entry (chat proxy pending)
 packages/              # shared code: types, clients, UI kit (not created yet)
 scripts/               # repo helpers run by hooks, CI or a package
 .github/workflows/     # ci.yml (the gate), deploy.yml (manual Workers release)
