@@ -8,8 +8,8 @@
 pnpm workspace: deployable apps live in `apps/*`, shared code in `packages/*`.
 
 The stack and the character renderer are settled in the local proposal and
-approved; `apps/web` implements the shell, the demo chat, the settings page and
-the live proxy against it. `Status: proposed` means the proposal is still open —
+approved; `apps/web` implements the shell, the canvas character, the demo chat,
+the settings page and the live proxy against it. `Status: proposed` means the proposal is still open —
 build against it until its `## Accept` items are checked with evidence, then
 flip to `implemented`. The workflow below is stack-neutral.
 
@@ -22,7 +22,7 @@ design docs or decision logs.
 ## Layout
 
 ```text
-apps/web/              # Astro app: static pages, React islands on shadcn/ui + AI Elements, Worker entry (character pending)
+apps/web/              # Astro app: static pages, React islands on shadcn/ui + AI Elements, Canvas 2D character, Worker entry
 packages/              # shared code: types, clients, UI kit (not created yet)
 scripts/               # repo helpers run by hooks, CI or a package
 .github/workflows/     # ci.yml (the gate), deploy.yml (manual Workers release)

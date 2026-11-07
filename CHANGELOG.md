@@ -38,6 +38,15 @@ change states its migration at the top of the release it ships in.
   data clearing and an about block. Every change saves as it is made, the
   sidebar mode chip follows it, and the chat page picks it up on the next
   message.
+- A character on the stage: four 512×512 poses (idle / happy / shy / sleepy)
+  drawn on a Canvas 2D canvas. The chat's emotion picks the pose, the figure
+  breathes in 28 slices, sways 0.6° around its feet, holds each mood for two
+  seconds and crossfades for 350 ms. Reduced motion freezes it, DPR is capped
+  at 2, and the loop pauses while the tab is hidden.
+- Character art under `apps/web/public/character/`: four CC BY-NC-SA 4.0
+  poses with attribution (`ATTRIBUTION.md`) and the license text beside them,
+  plus a root `NOTICE.md` that separates the private code from the
+  non-commercial art. The sidebar license line links to the attribution.
 
 ### Changed
 
@@ -51,6 +60,11 @@ change states its migration at the top of the release it ships in.
   `--panel-h` and `--panel-lift` on the root element and the stage figure
   rides the lift; phones cap the panel at 52vh and dim the stage behind the
   sidebar overlay.
+- The stage figure sizes to the viewport (480px tall on desktop, 360px on
+  phones) and rides the lift further: `--panel-lift` caps at 250px and
+  phones lift earlier, so the character peeks above a full-height panel
+  instead of disappearing behind it. The placeholder orb and its build note
+  are gone.
 - Keyboard: every control shows a 3px focus ring at 3:1 against the panel,
   `Cmd/Ctrl+K` or `/` focuses the composer, the scrollable message log is
   focusable and announces reply completion (and interruption) through a polite
