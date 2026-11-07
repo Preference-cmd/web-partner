@@ -45,6 +45,25 @@ change states its migration at the top of the release it ships in.
   compatible: a record without them loads with the defaults (0.62, system), so
   no migration is needed. The API key still lives only in `sessionStorage`
   (`partner.secret.v1`).
+- The floating chat panel caps at `min(62vh, 640px)` and 760px wide, so a
+  conversation shows about five messages instead of two and a half, and it
+  still shrinks to its content when short. The chat island publishes
+  `--panel-h` and `--panel-lift` on the root element and the stage figure
+  rides the lift; phones cap the panel at 52vh and dim the stage behind the
+  sidebar overlay.
+- Keyboard: every control shows a 2px focus ring, the scrollable message log
+  is focusable and announces reply completion through a polite status line,
+  and the closed debug drawer is no longer in the tab order.
+- Chat copy and actions: the header carries the name and the mode in force
+  while each reply carries only its source (`演示` / `模型` / `回落`), so the
+  same character is not named twice per turn; "新对话" starts a fresh
+  conversation (from any page), "清空" is disabled with nothing to clear, an
+  empty log explains itself, and an interrupted reply with no text is a note
+  rather than an empty bubble.
+- The composer's decorative attach button is gone until uploads exist, the
+  sidebar names the local user instead of a hard-coded person, both version
+  labels read 0.1.0, and the toggle icons are inline SVG instead of platform
+  glyphs.
 
 ### Notes
 
