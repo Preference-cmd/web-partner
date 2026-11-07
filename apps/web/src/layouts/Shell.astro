@@ -1,4 +1,5 @@
 ---
+import { ClientRouter } from "astro:transitions";
 import "../styles/global.css";
 import Sidebar from "../components/Sidebar.astro";
 import DebugPanel from "../components/DebugPanel.astro";
@@ -14,6 +15,7 @@ const { title = "伴侣小生命" } = Astro.props;
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
+    <ClientRouter />
   </head>
   <body>
     <div class="app">
@@ -36,19 +38,21 @@ const { title = "伴侣小生命" } = Astro.props;
       <DebugPanel />
     </div>
     <script is:inline>
-      const body = document.body;
-      document.getElementById("btn-side")?.addEventListener("click", () => {
-        body.classList.toggle("sidebar-off");
+      document.addEventListener("astro:page-load", () => {
+        const body = document.body;
+        document.getElementById("btn-side")?.addEventListener("click", () => {
+          body.classList.toggle("sidebar-off");
+        });
+        document.getElementById("btn-panel")?.addEventListener("click", () => {
+          body.classList.toggle("panel-on");
+        });
+        document.getElementById("btn-close")?.addEventListener("click", () => {
+          body.classList.remove("panel-on");
+        });
+        if (window.matchMedia("(max-width: 900px)").matches) {
+          body.classList.add("sidebar-off");
+        }
       });
-      document.getElementById("btn-panel")?.addEventListener("click", () => {
-        body.classList.toggle("panel-on");
-      });
-      document.getElementById("btn-close")?.addEventListener("click", () => {
-        body.classList.remove("panel-on");
-      });
-      if (window.matchMedia("(max-width: 900px)").matches) {
-        body.classList.add("sidebar-off");
-      }
     </script>
   </body>
 </html>

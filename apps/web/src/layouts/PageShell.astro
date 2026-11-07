@@ -1,4 +1,5 @@
 ---
+import { ClientRouter } from "astro:transitions";
 import "../styles/global.css";
 import Sidebar from "../components/Sidebar.astro";
 
@@ -14,6 +15,7 @@ const { title, active = "settings" } = Astro.props;
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
+    <ClientRouter />
   </head>
   <body>
     <div class="app">
@@ -26,13 +28,15 @@ const { title, active = "settings" } = Astro.props;
     </div>
     <button class="fbtn" id="btn-side" type="button" title="收起 / 展开侧边栏" style="position:fixed;top:14px;right:14px;z-index:5">☰</button>
     <script is:inline>
-      const body = document.body;
-      document.getElementById("btn-side")?.addEventListener("click", () => {
-        body.classList.toggle("sidebar-off");
+      document.addEventListener("astro:page-load", () => {
+        const body = document.body;
+        document.getElementById("btn-side")?.addEventListener("click", () => {
+          body.classList.toggle("sidebar-off");
+        });
+        if (window.matchMedia("(max-width: 900px)").matches) {
+          body.classList.add("sidebar-off");
+        }
       });
-      if (window.matchMedia("(max-width: 900px)").matches) {
-        body.classList.add("sidebar-off");
-      }
     </script>
   </body>
 </html>
