@@ -37,3 +37,5 @@ coverage/
 AGENTS.local.md
 CLAUDE.local.md
 .agents/
+# Critique snapshots are working material; the impeccable skill writes them here.
+.impeccable/
