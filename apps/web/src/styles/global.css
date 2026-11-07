@@ -101,40 +101,57 @@
 
 /* The stage keeps the figure clear of the panel; the chat island writes --panel-lift. */
 .stage-figure {
-  --stage-filter: none;
+  --stage-filter: saturate(1);
   --stage-glow: rgba(123, 167, 255, 0.38);
   --stage-breathe: 6s;
 
   bottom: calc(14% + var(--panel-lift, 0px));
   transition: bottom 180ms ease;
-  animation: breathe var(--stage-breathe) ease-in-out infinite;
 }
 
-/* The chat island writes --stage-mood through data-emotion; the stand-in figure reads it. */
+/* The chat island writes data-emotion; the renderer picks the pose, CSS picks the light. */
 html[data-emotion="happy"] .stage-figure {
-  --stage-filter: sepia(0.28) saturate(1.25);
+  --stage-filter: saturate(1.12) brightness(1.04);
   --stage-glow: rgba(255, 201, 128, 0.55);
 }
 
 html[data-emotion="shy"] .stage-figure {
-  --stage-filter: hue-rotate(28deg) saturate(1.15);
+  --stage-filter: saturate(1.06) brightness(1.02);
   --stage-glow: rgba(255, 150, 190, 0.5);
 }
 
 html[data-emotion="sleepy"] .stage-figure {
-  --stage-filter: saturate(0.55) brightness(0.9);
+  --stage-filter: saturate(0.72) brightness(0.88);
   --stage-glow: rgba(148, 163, 200, 0.34);
   --stage-breathe: 9s;
 }
 
 .stage-aura {
   background: radial-gradient(ellipse at center, var(--stage-glow), transparent 70%);
+  animation: breathe var(--stage-breathe) ease-in-out infinite;
 }
 
-.stage-body,
-.stage-head {
-  filter: var(--stage-filter);
+.stage-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  filter: var(--stage-filter) drop-shadow(0 18px 28px rgba(0, 0, 0, 0.5));
   transition: filter 600ms ease;
+}
+
+.stage-fallback {
+  position: absolute;
+  bottom: 24px;
+  width: 100%;
+  display: none;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+.stage-figure[data-character-state="missing"] .stage-fallback {
+  display: block;
 }
 
 @media (prefers-reduced-motion: reduce) {

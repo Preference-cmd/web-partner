@@ -166,7 +166,10 @@ export default function ChatPanel() {
         if (conversation.style.height !== target) conversation.style.height = target;
       }
       const height = node.offsetHeight;
-      const lift = Math.max(0, Math.min(150, height - root.clientHeight * 0.46));
+      // Phones have far less stage above the panel, so the figure rises sooner.
+      const lift = narrow
+        ? Math.max(0, Math.min(250, height - root.clientHeight * 0.3))
+        : Math.max(0, Math.min(250, height - root.clientHeight * 0.46 + 24));
       root.style.setProperty('--panel-h', `${height}px`);
       root.style.setProperty('--panel-lift', `${Math.round(lift)}px`);
     };

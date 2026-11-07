@@ -117,11 +117,15 @@ function SidebarBody({
           本机用户
         </div>
         {license ? (
-          <p className="text-xs leading-relaxed text-muted-foreground">
+          <a
+            className="text-xs leading-relaxed text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            href="/character/ATTRIBUTION.md"
+            title="角色素材署名与许可"
+          >
             非官方、非商业演示
             <br />
             角色素材 CC BY-NC-SA 4.0
-          </p>
+          </a>
         ) : null}
       </div>
     </div>
