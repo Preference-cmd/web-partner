@@ -81,6 +81,14 @@ change states its migration at the top of the release it ships in.
 - The debug panel reads the live chat store (emotion, mode, message count)
   instead of fixed sample values; its forced emotion and lighting switches stay
   disabled until the controller exposes them.
+- The conversation surface is rebuilt on AI Elements: a sticky-scroll log with a
+  jump-to-latest button, a copy action per reply, a composer that distinguishes
+  ready / streaming / stopped, and a loader while a reply has no text yet.
+  Replies stay plain text and keep their source label.
+- One dependency came with it: `use-stick-to-bottom` owns the follow-the-bottom
+  scroll. The registry's attachments, model picker, slash commands, branch
+  controls and Streamdown markdown renderer were left out, so no markdown
+  rendering, no uploads and no model switching appear.
 
 ### Notes
 

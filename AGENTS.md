@@ -22,7 +22,7 @@ design docs or decision logs.
 ## Layout
 
 ```text
-apps/web/              # Astro app: static pages, React islands on shadcn/ui, Worker entry (character pending)
+apps/web/              # Astro app: static pages, React islands on shadcn/ui + AI Elements, Worker entry (character pending)
 packages/              # shared code: types, clients, UI kit (not created yet)
 scripts/               # repo helpers run by hooks, CI or a package
 .github/workflows/     # ci.yml (the gate), deploy.yml (manual Workers release)

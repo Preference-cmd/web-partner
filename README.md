@@ -4,7 +4,7 @@ A web application deployed to Cloudflare Workers.
 
 **Status: demo chat, settings and a live proxy.** `apps/web` carries the Astro
 app — sidebar, full-bleed character stage, floating chat panel and the debug
-drawer — plus React islands built on shadcn/ui: a chat island that streams demo
+drawer — plus React islands built on shadcn/ui and AI Elements: a chat island that streams demo
 replies, keeps local history and tags each reply with an emotion, a settings
 island at `/settings` that holds the endpoint, the session-only key, the mode
 and the panel's appearance, the sidebar and the debug panel. `POST /api/chat`
