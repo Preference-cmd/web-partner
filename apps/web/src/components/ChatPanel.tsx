@@ -2,13 +2,20 @@ import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { useStore } from 'zustand';
 import { getChatController } from '../lib/chat/controller';
 import { QUICK_ACTIONS } from '../lib/chat/demo';
-import { applyAppearance, loadSettings } from '../lib/chat/settings';
-import type { Message, MessageSource } from '../lib/chat/types';
+import { applyAppearance, loadSettings, readApiKey, resolveMode } from '../lib/chat/settings';
+import type { ChatMode, Emotion, Message, MessageSource } from '../lib/chat/types';
 
 const SOURCE_LABEL: Record<MessageSource, string> = {
   demo: '演示',
   model: '模型',
   fallback: '回落',
+};
+
+const EMOTION_LABEL: Record<Emotion, string> = {
+  idle: '平静',
+  happy: '开心',
+  shy: '害羞',
+  sleepy: '困了',
 };
 
 function Typing() {
@@ -24,16 +31,20 @@ function Typing() {
 function MessageRow({ message }: { message: Message }) {
   const mine = message.role === 'user';
   const waiting = !mine && message.status === 'streaming' && message.content.length === 0;
+  // An interrupted reply with no text is news, not a bubble.
+  const interrupted = !mine && message.status === 'aborted' && message.content.length === 0;
   return (
     <div className={`msg ${mine ? 'me' : 'bot'}`}>
       <div className="name">
-        {mine ? '你' : `小鲸 · ${SOURCE_LABEL[message.source ?? 'demo']}`}
+        {mine ? '你' : SOURCE_LABEL[message.source ?? 'demo']}
         {message.status === 'aborted' ? <span className="note">已中断</span> : null}
       </div>
-      <div className="bubble">
-        {message.content}
-        {waiting ? <Typing /> : null}
-      </div>
+      {interrupted ? null : (
+        <div className="bubble">
+          {message.content}
+          {waiting ? <Typing /> : null}
+        </div>
+      )}
     </div>
   );
 }
@@ -45,6 +56,7 @@ export default function ChatPanel() {
   const emotion = useStore(controller.store, (state) => state.emotion);
   const [draft, setDraft] = useState('');
   const [collapsed, setCollapsed] = useState(false);
+  const [mode, setMode] = useState<ChatMode>('demo');
   const panelRef = useRef<HTMLElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
@@ -58,7 +70,9 @@ export default function ChatPanel() {
   }, [emotion]);
 
   useEffect(() => {
-    applyAppearance(document.documentElement, loadSettings(window.localStorage));
+    const stored = loadSettings(window.localStorage);
+    applyAppearance(document.documentElement, stored);
+    setMode(resolveMode(stored, readApiKey(window.sessionStorage, window.localStorage)));
   }, []);
 
   // The stage needs the panel's height to keep the figure clear of it.
@@ -81,6 +95,28 @@ export default function ChatPanel() {
       window.removeEventListener('resize', sync);
     };
   }, []);
+
+  // "新对话" is static sidebar markup: intercepted here, or honoured after landing on /?new=1.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('new') !== '1') return;
+    controller.restart();
+    window.history.replaceState(null, '', window.location.pathname);
+  }, [controller]);
+
+  useEffect(() => {
+    function onClick(event: MouseEvent): void {
+      const target =
+        event.target instanceof Element ? event.target.closest('[data-new-chat]') : null;
+      if (!target) return;
+      event.preventDefault();
+      controller.restart();
+      if (window.location.search) {
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    }
+    document.addEventListener('click', onClick);
+    return () => document.removeEventListener('click', onClick);
+  }, [controller]);
 
   useEffect(() => {
     const node = listRef.current;
@@ -122,8 +158,12 @@ export default function ChatPanel() {
       </p>
       <div className="chat-head">
         <div className="who">
-          <span className="dot" data-emotion={emotion} />
-          小鲸 · 在线
+          <span className="dot" data-emotion={emotion} title={EMOTION_LABEL[emotion]} />
+          <span className="sr-only">情绪：{EMOTION_LABEL[emotion]}</span>
+          小鲸
+          <span className={mode === 'live' ? 'badge live' : 'badge'}>
+            {mode === 'live' ? '实际' : '演示'}
+          </span>
         </div>
         <div className="head-actions">
           <button
@@ -131,6 +171,7 @@ export default function ChatPanel() {
             type="button"
             title="清空对话"
             aria-label="清空对话"
+            disabled={messages.length === 0}
             onClick={clear}
           >
             清空
@@ -196,9 +237,6 @@ export default function ChatPanel() {
       </div>
 
       <div className="composer">
-        <div className="attach" aria-hidden="true">
-          ＋
-        </div>
         <label className="input">
           <textarea
             value={draft}

@@ -164,12 +164,23 @@ a { color: inherit; text-decoration: none; }
 .input { flex: 1; display: flex; align-items: center; gap: 10px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 13px; padding: 10px 13px; color: #8f96a3; font-size: 13px; }
 .input .hint { flex: 1; }
 .send { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #8fb6ff, #5b8cf0); display: grid; place-items: center; color: #0b1220; font-size: 14px; box-shadow: 0 6px 18px rgba(90, 140, 240, 0.35); }
-.attach { width: 26px; height: 26px; border-radius: 8px; border: 1px solid var(--line); display: grid; place-items: center; color: #8f96a3; font-size: 14px; }
 @media (max-width: 640px) { .kbd { display: none; } }
 
 /* chat island */
 .chat .msgs { flex: 1 1 auto; min-height: 0; }
 .chat .msgs:focus-visible { outline-offset: -2px; }
+.chat .msgs:empty::after {
+  content: "还没有对话。说点什么，或者点上面的快捷按钮。";
+  color: var(--dim); font-size: 12.5px; line-height: 1.7; padding: 2px;
+}
+.chat-head .badge {
+  padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line);
+  color: #9fb4d8; font-size: 10px; letter-spacing: 0.3px;
+}
+.chat-head .badge.live {
+  color: #b7e2c9; border-color: rgba(127, 224, 168, 0.3); background: rgba(127, 224, 168, 0.08);
+}
+.chat .clear:disabled { visibility: hidden; }
 .chat .bubble { white-space: pre-wrap; overflow-wrap: anywhere; }
 .chat .name .note { margin-left: 6px; color: #d9a7a0; font-size: 10px; }
 .chat.collapsed { max-height: none; }
@@ -257,7 +268,7 @@ body.panel-on .right { visibility: visible; }
 }
 .set-status .dot { background: #8f96a3; box-shadow: none; }
 .set-status[data-mode="live"] .dot { background: #7fe0a8; box-shadow: 0 0 8px #7fe0a8; }
-.set-status .flash { margin-left: auto; font-size: 11.5px; color: #8fd6a8; }
+.set-status .flash { flex: 0 0 auto; margin-left: auto; font-size: 11.5px; color: #8fd6a8; white-space: nowrap; }
 
 .set-field {
   padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px;
@@ -311,6 +322,8 @@ body.panel-on .right { visibility: visible; }
   background: rgba(255, 255, 255, 0.03); color: #c3c9d4; font-size: 12.5px; cursor: pointer;
 }
 .set .ghost:hover { background: rgba(255, 255, 255, 0.07); border-color: rgba(255, 255, 255, 0.14); }
+.set .ghost.danger { border-color: rgba(240, 121, 107, 0.35); color: #f0a8a0; }
+.set .ghost.danger:hover { background: rgba(240, 121, 107, 0.1); border-color: rgba(240, 121, 107, 0.5); }
 
 .mode[data-mode="live"] { color: #cfe9d9; background: rgba(127, 224, 168, 0.12); border-color: rgba(127, 224, 168, 0.28); }
 .mode[data-mode="live"] .dot { background: #7fe0a8; box-shadow: 0 0 8px #7fe0a8; }

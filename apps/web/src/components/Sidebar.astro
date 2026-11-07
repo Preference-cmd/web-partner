@@ -10,9 +10,9 @@ const { active = "chat", license = true } = Astro.props;
     <div class="brand">
       <div class="mark"></div>
       <b>伴侣小生命</b>
-      <span class="ver">0.1</span>
+      <span class="ver">0.1.0</span>
     </div>
-    <a class="newchat" href="/">＋ 新对话</a>
+    <a class="newchat" href="/?new=1" data-new-chat>＋ 新对话</a>
     <nav class="nav">
       <a class:list={[{ on: active === "chat" }]} href="/">◍ 对话</a>
       <a class:list={[{ on: active === "settings" }]} href="/settings">⚙ 设置</a>
@@ -28,7 +28,7 @@ const { active = "chat", license = true } = Astro.props;
         <span class="dot"></span>
         <span class="mode-text">演示模式</span>
       </span>
-      <div class="user"><div class="avatar"></div>Pref2rence</div>
+      <div class="user"><div class="avatar"></div>本机用户</div>
       {license && (
         <div class="license">非官方、非商业演示<br />角色素材 CC BY-NC-SA 4.0</div>
       )}

@@ -39,6 +39,8 @@ export interface ChatController {
   quickReply: (text: string) => void;
   stop: () => void;
   clear: () => void;
+  /** Back to a single greeting, as if the app had just opened. */
+  restart: () => void;
   settled: () => Promise<void>;
 }
 
@@ -300,21 +302,24 @@ export function createChatController(deps: ChatControllerDeps = {}): ChatControl
       : runDemo(turnId, reply.id, text, controller.signal);
   }
 
+  function openingMessage(): Message {
+    return {
+      id: newId(),
+      role: 'assistant',
+      content: GREETING,
+      emotion: 'idle',
+      source: 'demo',
+      status: 'done',
+      at: now(),
+    };
+  }
+
   function hydrate(): void {
     if (hydrated) return;
     hydrated = true;
     const snapshot = storage.read();
     if (!snapshot) {
-      const greeting: Message = {
-        id: newId(),
-        role: 'assistant',
-        content: GREETING,
-        emotion: 'idle',
-        source: 'demo',
-        status: 'done',
-        at: now(),
-      };
-      store.setState({ messages: [greeting] });
+      store.setState({ messages: [openingMessage()] });
       persist(null);
       return;
     }
@@ -349,6 +354,19 @@ export function createChatController(deps: ChatControllerDeps = {}): ChatControl
     store.setState({ messages: [], status: 'idle', abort: null, pendingId: null, emotion: 'idle' });
   }
 
+  function restart(): void {
+    abortCurrent();
+    hydrated = true;
+    store.setState({
+      messages: [openingMessage()],
+      status: 'idle',
+      abort: null,
+      pendingId: null,
+      emotion: 'idle',
+    });
+    persist(null);
+  }
+
   return {
     store,
     hydrate,
@@ -356,6 +374,7 @@ export function createChatController(deps: ChatControllerDeps = {}): ChatControl
     quickReply: (text) => startTurn(text, true),
     stop: () => abortCurrent(),
     clear,
+    restart,
     settled: () => running ?? Promise.resolve(),
   };
 }

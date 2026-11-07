@@ -288,7 +288,7 @@ export default function SettingsPanel() {
       <section>
         <h2>数据</h2>
         <div className="set-actions">
-          <button className="ghost" type="button" onClick={clearHistory}>
+          <button className="ghost danger" type="button" onClick={clearHistory}>
             清空对话历史
           </button>
           <button className="ghost" type="button" onClick={removeKey}>

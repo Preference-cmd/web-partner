@@ -330,4 +330,39 @@ describe('chat controller', () => {
     expect(run.controller.store.getState().messages).toEqual([]);
     expect(run.raw.getItem(CHAT_KEY)).toBeNull();
   });
+
+  it('restarts with a single greeting and drops the old history', async () => {
+    const run = makeHarness();
+    run.controller.hydrate();
+    run.controller.send('在吗');
+    await run.controller.settled();
+    run.controller.restart();
+    const state = run.controller.store.getState();
+    expect(state.messages).toHaveLength(1);
+    expect(state.messages[0]?.content).toBe(GREETING);
+    expect(state.status).toBe('idle');
+    expect(state.pendingId).toBeNull();
+    expect(state.emotion).toBe('idle');
+    expect(run.raw.getItem(CHAT_KEY)).toContain('"pendingId":null');
+  });
+
+  it('stops a running reply when it restarts', async () => {
+    let aborted = false;
+    const run = makeHarness({
+      sleep: (_ms, signal) =>
+        new Promise((resolve, reject) => {
+          signal.addEventListener('abort', () => {
+            aborted = true;
+            reject(new DOMException('Aborted', 'AbortError'));
+          });
+          setTimeout(resolve, 50);
+        }),
+    });
+    run.controller.hydrate();
+    run.controller.send('在吗');
+    run.controller.restart();
+    await flush();
+    expect(aborted).toBe(true);
+    expect(run.controller.store.getState().messages).toHaveLength(1);
+  });
 });
