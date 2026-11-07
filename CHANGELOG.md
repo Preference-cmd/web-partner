@@ -21,9 +21,9 @@ change states its migration at the top of the release it ships in.
   `.agents/pipelines/` (not part of the repository).
 - A chat island on `/`: demo replies stream token by token, three quick
   actions answer locally, a stop control keeps the partial reply, and history
-  persists in this browser (`partner.chat.v1`, 100 messages). Each reply is
-  labelled `demo`, `model` or `fallback`; the live path falls back to a
-  template until `/api/chat` exists.
+  persists in this browser (`partner.chat.v1`, 100 messages). Replies are
+  signed with the character name; only a fallback carries a `模板回复` mark.
+  The live path falls back to a template until `/api/chat` exists.
 - Client-side navigation between `/` and `/settings` (`ClientRouter`), so a
   running reply survives the page change; a full reload marks it interrupted.
 - `POST /api/chat`: streams a reply from a user-supplied OpenAI-compatible
@@ -45,25 +45,26 @@ change states its migration at the top of the release it ships in.
   compatible: a record without them loads with the defaults (0.62, system), so
   no migration is needed. The API key still lives only in `sessionStorage`
   (`partner.secret.v1`).
-- The floating chat panel caps at `min(62vh, 640px)` and 760px wide, so a
-  conversation shows about five messages instead of two and a half, and it
+- The floating chat panel caps at `min(72vh, 720px)` and 760px wide, so a
+  conversation shows about four replies instead of two and a half, and it
   still shrinks to its content when short. The chat island publishes
   `--panel-h` and `--panel-lift` on the root element and the stage figure
   rides the lift; phones cap the panel at 52vh and dim the stage behind the
   sidebar overlay.
-- Keyboard: every control shows a 2px focus ring, the scrollable message log
-  is focusable and announces reply completion through a polite status line,
-  and the closed debug drawer is no longer in the tab order.
-- Chat copy and actions: the header carries the name and the mode in force
-  while each reply carries only its source (`演示` / `模型` / `回落`), so the
-  same character is not named twice per turn; "新对话" starts a fresh
-  conversation (from any page), "清空" is disabled with nothing to clear, an
-  empty log explains itself, and an interrupted reply with no text is a note
-  rather than an empty bubble.
+- Keyboard: every control shows a 3px focus ring at 3:1 against the panel,
+  `Cmd/Ctrl+K` or `/` focuses the composer, the scrollable message log is
+  focusable and announces reply completion (and interruption) through a polite
+  status line, and the closed debug drawer is no longer in the tab order.
+- Chat copy and actions: the header carries the name, the current mood and
+  the mode in force, while each reply is signed with the character name and
+  only a fallback is labelled; "新对话" asks before discarding a conversation
+  with user messages (from any page), "清空" is disabled with nothing to
+  clear, an empty log explains itself, and an interrupted reply with no text
+  is a note rather than an empty bubble.
 - The composer's decorative attach button is gone until uploads exist, the
-  sidebar names the local user instead of a hard-coded person, both version
-  labels read 0.1.0, and the toggle icons are inline SVG instead of platform
-  glyphs.
+  sidebar names the local user instead of a hard-coded person, the version
+  label lives only in the settings about block, and the toggle icons are
+  inline SVG instead of platform glyphs.
 - The interface is rebuilt on shadcn/ui with a Tailwind token layer (neutral
   dark, `--radius` 0.625rem). The sidebar, chat panel, settings page and debug
   panel are React islands built from the default components, and the
@@ -82,13 +83,27 @@ change states its migration at the top of the release it ships in.
   instead of fixed sample values; its forced emotion and lighting switches stay
   disabled until the controller exposes them.
 - The conversation surface is rebuilt on AI Elements: a sticky-scroll log with a
-  jump-to-latest button, a copy action per reply, a composer that distinguishes
+  jump-to-latest button that stays clickable until the scroll lands, a copy
+  action per reply that appears on hover or focus, a composer that distinguishes
   ready / streaming / stopped, and a loader while a reply has no text yet.
-  Replies stay plain text and keep their source label.
+  Replies stay plain text; only a fallback is labelled.
 - One dependency came with it: `use-stick-to-bottom` owns the follow-the-bottom
   scroll. The registry's attachments, model picker, slash commands, branch
   controls and Streamdown markdown renderer were left out, so no markdown
   rendering, no uploads and no model switching appear.
+
+- The stand-in stage consumes the chat's emotion: the figure takes a mood
+  filter, the aura takes a mood colour, the breath slows when sleepy, and the
+  panel names the mood beside the character. The build-time placeholder line
+  moved into the debug panel.
+- The live-mode switch and its status line now agree: the line names the
+  effective mode and the stored choice ("演示模式 · 已选实时，还没填端点"),
+  and the switch explains what is still missing instead of relying on a
+  toast. "实际" became "实时"; the fallback label "回落" became "模板回复".
+- Focus and type floors: the ring token clears 3:1, "/" gained an sr-only
+  heading, 10px metadata became 12px, the licence line lost its extra fade,
+  and settings toasts moved to the bottom-right so they no longer cover the
+  page title.
 
 ### Notes
 
