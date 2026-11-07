@@ -26,8 +26,15 @@ change states its migration at the top of the release it ships in.
   template until `/api/chat` exists.
 - Client-side navigation between `/` and `/settings` (`ClientRouter`), so a
   running reply survives the page change; a full reload marks it interrupted.
+- `POST /api/chat`: streams a reply from a user-supplied OpenAI-compatible
+  https endpoint through the Vercel AI SDK. The route rejects non-https, IP
+  literal, `localhost`, `.local` and `.internal` targets, cross-origin
+  callers, bodies over 32 KB and turns over 21 messages; it never logs the key.
+  The browser receives a plain text chunk stream, and an upstream failure that
+  arrives as an empty stream falls back to a template.
 
 ### Notes
 
-- `/api/chat` does not exist yet, so live mode currently ends in a template
-  fallback; the character renderer and the settings island are still to come.
+- The live path uses the AI SDK on the Worker and a plain text stream to the
+  browser; direct mode still reads the endpoint's OpenAI SSE. The settings
+  island and the character renderer are still to come.
