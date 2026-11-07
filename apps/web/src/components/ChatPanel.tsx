@@ -1,7 +1,29 @@
 import { cn } from 'cn';
-import { ArrowUpIcon, ChevronDownIcon, SquareIcon } from 'lucide-react';
-import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
+import { CheckIcon, ChevronDownIcon, CopyIcon } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { useStore } from 'zustand';
+import {
+  Conversation,
+  ConversationContent,
+  ConversationEmptyState,
+  ConversationScrollButton,
+} from '@/components/ai-elements/conversation';
+import { Loader } from '@/components/ai-elements/loader';
+import {
+  Message,
+  MessageAction,
+  MessageActions,
+  MessageContent,
+} from '@/components/ai-elements/message';
+import {
+  PromptInput,
+  PromptInputBody,
+  PromptInputFooter,
+  PromptInputSubmit,
+  PromptInputTextarea,
+  PromptInputTools,
+} from '@/components/ai-elements/prompt-input';
+import { Suggestion, Suggestions } from '@/components/ai-elements/suggestion';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,11 +37,10 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { getChatController } from '@/lib/chat/controller';
 import { QUICK_ACTIONS } from '@/lib/chat/demo';
 import { applyAppearance, loadSettings, readApiKey, resolveMode } from '@/lib/chat/settings';
-import type { ChatMode, Emotion, Message, MessageSource } from '@/lib/chat/types';
+import type { Message as ChatMessage, ChatMode, Emotion, MessageSource } from '@/lib/chat/types';
 
 const SOURCE_LABEL: Record<MessageSource, string> = {
   demo: '演示',
@@ -41,47 +62,52 @@ const EMOTION_DOT: Record<Emotion, string> = {
   sleepy: 'bg-slate-400',
 };
 
-function Typing() {
-  return (
-    <span className="inline-flex gap-1 py-0.5" aria-hidden>
-      {[0, 1, 2].map((index) => (
-        <i
-          key={index}
-          className="size-1.5 animate-pulse rounded-full bg-muted-foreground"
-          style={{ animationDelay: `${index * 160}ms` }}
-        />
-      ))}
-    </span>
-  );
-}
-
-function MessageRow({ message }: { message: Message }) {
+function MessageRow({ message }: { message: ChatMessage }) {
   const mine = message.role === 'user';
   const waiting = !mine && message.status === 'streaming' && message.content.length === 0;
   // An interrupted reply with no text is news, not a bubble.
   const interrupted = !mine && message.status === 'aborted' && message.content.length === 0;
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<number | undefined>(undefined);
+
+  useEffect(
+    () => () => {
+      if (timer.current) window.clearTimeout(timer.current);
+    },
+    [],
+  );
+
+  async function copy(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(message.content);
+      setCopied(true);
+      if (timer.current) window.clearTimeout(timer.current);
+      timer.current = window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard permission can be denied; the reply is still on screen.
+    }
+  }
+
   return (
-    <div
-      className={cn('flex max-w-[85%] flex-col gap-1', mine ? 'items-end self-end' : 'items-start')}
-    >
-      <span className="text-[10px] text-muted-foreground">
+    <Message from={mine ? 'user' : 'assistant'}>
+      <div className="text-[10px] text-muted-foreground">
         {mine ? '你' : SOURCE_LABEL[message.source ?? 'demo']}
         {message.status === 'aborted' ? ' · 已中断' : ''}
-      </span>
+      </div>
       {interrupted ? null : (
-        <div
-          className={cn(
-            'rounded-2xl px-3 py-2 break-words whitespace-pre-wrap',
-            mine
-              ? 'rounded-br-sm bg-primary text-primary-foreground'
-              : 'rounded-bl-sm bg-muted text-foreground',
-          )}
-        >
+        <MessageContent className="whitespace-pre-wrap">
           {message.content}
-          {waiting ? <Typing /> : null}
-        </div>
+          {waiting ? <Loader className="text-muted-foreground" size={14} /> : null}
+        </MessageContent>
       )}
-    </div>
+      {!mine && message.content.length > 0 && !waiting ? (
+        <MessageActions>
+          <MessageAction tooltip={copied ? '已复制' : '复制回复'} onClick={copy}>
+            {copied ? <CheckIcon className="size-3.5" /> : <CopyIcon className="size-3.5" />}
+          </MessageAction>
+        </MessageActions>
+      ) : null}
+    </Message>
   );
 }
 
@@ -94,8 +120,7 @@ export default function ChatPanel() {
   const [collapsed, setCollapsed] = useState(false);
   const [mode, setMode] = useState<ChatMode>('demo');
   const panelRef = useRef<HTMLElement>(null);
-  const listRef = useRef<HTMLDivElement>(null);
-  const stick = useRef(true);
+  const syncRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     controller.hydrate();
@@ -111,26 +136,57 @@ export default function ChatPanel() {
     setMode(resolveMode(stored, readApiKey(window.sessionStorage, window.localStorage)));
   }, []);
 
-  // The stage needs the panel's height to keep the figure clear of it.
+  // The list is sized by content until it would pass the panel cap. It needs an explicit
+  // height, not a max: stick-to-bottom's scroll area is height:100%, which only scrolls
+  // against a definite parent. The panel stays content-sized and the stage rides --panel-lift.
   useEffect(() => {
     const node = panelRef.current;
     if (!node) return;
     const root = document.documentElement;
     const sync = (): void => {
+      const narrow = window.innerWidth < 768;
+      const cap = Math.min(root.clientHeight * (narrow ? 0.52 : 0.62), narrow ? 520 : 640);
+      const conversation = node.querySelector<HTMLElement>('[aria-label="对话记录"]');
+      const content = conversation?.firstElementChild?.firstElementChild as HTMLElement | null;
+      if (conversation && content) {
+        let others = 2; // the panel's top and bottom border
+        for (const child of node.children) {
+          if (child !== conversation) others += (child as HTMLElement).offsetHeight;
+        }
+        const available = Math.max(96, cap - others);
+        // The list must not flex: a grown flex item leaves the height:100% scroll area inside
+        // it resolving against content, so the conversation never scrolls. Compare inline
+        // values, not offsetHeight, which flex has already squeezed down to the cap.
+        if (conversation.style.flex !== '0 0 auto') conversation.style.flex = '0 0 auto';
+        const target = `${Math.round(Math.max(0, Math.min(content.scrollHeight, available)))}px`;
+        if (conversation.style.height !== target) conversation.style.height = target;
+      }
       const height = node.offsetHeight;
       const lift = Math.max(0, Math.min(150, height - root.clientHeight * 0.46));
       root.style.setProperty('--panel-h', `${height}px`);
       root.style.setProperty('--panel-lift', `${Math.round(lift)}px`);
     };
+    syncRef.current = sync;
     sync();
     const observer = new ResizeObserver(sync);
     observer.observe(node);
+    // Capped at its cap, the panel keeps its size, so content growth shows on the list only.
+    const inner =
+      node.querySelector<HTMLElement>('[aria-label="对话记录"]')?.firstElementChild
+        ?.firstElementChild;
+    if (inner) observer.observe(inner);
     window.addEventListener('resize', sync);
     return () => {
       observer.disconnect();
       window.removeEventListener('resize', sync);
+      syncRef.current = null;
     };
   }, []);
+
+  // Collapsing hides the list (display:none), which is not a resize the observer can see.
+  useEffect(() => {
+    if (!collapsed) syncRef.current?.();
+  }, [collapsed]);
 
   // "新对话" is a link: intercepted here, or honoured after landing on /?new=1.
   useEffect(() => {
@@ -154,36 +210,13 @@ export default function ChatPanel() {
     return () => document.removeEventListener('click', onClick);
   }, [controller]);
 
-  useEffect(() => {
-    const node = listRef.current;
-    const last = messages.at(-1);
-    if (!node || !stick.current || !last) return;
-    node.scrollTop = node.scrollHeight;
-  }, [messages]);
-
   const streaming = status === 'streaming';
   const lastReply = [...messages]
     .reverse()
     .find((message) => message.role === 'assistant' && message.content);
-  const pending = messages.find((message) => message.status === 'streaming');
-  const canStop = streaming && (pending?.content.length ?? 0) > 0;
-
-  function submit(): void {
-    const text = draft.trim();
-    if (!text) return;
-    setDraft('');
-    controller.send(text);
-  }
 
   function clear(): void {
     controller.clear();
-  }
-
-  function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>): void {
-    if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
-      event.preventDefault();
-      submit();
-    }
   }
 
   return (
@@ -249,67 +282,74 @@ export default function ChatPanel() {
         </div>
       </div>
 
-      {collapsed ? null : (
-        <div
-          ref={listRef}
-          role="log"
-          aria-label="对话记录"
-          aria-live="off"
-          // biome-ignore lint/a11y/noNoninteractiveTabindex: a scrollable log needs focus so the keyboard can scroll it
-          tabIndex={0}
-          onScroll={(event) => {
-            const node = event.currentTarget;
-            stick.current = node.scrollHeight - node.scrollTop - node.clientHeight < 24;
-          }}
-          className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        >
+      {/* Kept mounted while collapsed: the resize observer below holds its node. */}
+      <Conversation
+        className={cn('min-h-0', collapsed && 'hidden')}
+        aria-label="对话记录"
+        aria-live="off"
+        tabIndex={0}
+      >
+        <ConversationContent className="gap-4 px-4 py-3">
           {messages.length === 0 ? (
-            <p className="text-muted-foreground">还没有对话。说点什么，或者点下面的快捷按钮。</p>
+            <ConversationEmptyState
+              title="还没有对话"
+              description="说点什么，或者点下面的快捷按钮。"
+              className="p-2"
+            />
           ) : (
             messages.map((message) => <MessageRow key={message.id} message={message} />)
           )}
-        </div>
-      )}
+        </ConversationContent>
+        <ConversationScrollButton aria-label="跳到最新消息" />
+      </Conversation>
 
       {collapsed ? null : (
-        <div className="flex flex-wrap gap-1.5 px-4 pb-2">
-          {QUICK_ACTIONS.map(([label, text]) => (
-            <Button
-              key={label}
-              variant="outline"
-              size="sm"
-              disabled={streaming}
-              onClick={() => controller.quickReply(text)}
-            >
-              {label}
-            </Button>
-          ))}
+        <div className="px-3 pb-1">
+          <Suggestions>
+            {QUICK_ACTIONS.map(([label, text]) => (
+              <Suggestion
+                key={label}
+                suggestion={text}
+                onClick={(value) => controller.quickReply(value)}
+                disabled={streaming}
+              >
+                {label}
+              </Suggestion>
+            ))}
+          </Suggestions>
         </div>
       )}
 
-      <div className="flex items-end gap-2 border-t px-3 py-2.5">
-        <Textarea
-          value={draft}
-          rows={1}
-          placeholder="和它说点什么…"
-          aria-label="消息"
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={onKeyDown}
-          className="field-sizing-content max-h-24 min-h-9 flex-1 resize-none border-0 bg-transparent px-1.5 py-1.5 text-sm shadow-none focus-visible:ring-0 dark:bg-transparent"
-        />
-        <Button
-          size="icon"
-          variant={canStop ? 'destructive' : 'default'}
-          disabled={canStop ? false : streaming || draft.trim().length === 0}
-          aria-label={canStop ? '停止回复' : '发送'}
-          onClick={() => {
-            if (canStop) controller.stop();
-            else submit();
-          }}
-        >
-          {canStop ? <SquareIcon className="size-3.5 fill-current" /> : <ArrowUpIcon />}
-        </Button>
-      </div>
+      <PromptInput
+        className="border-t p-2"
+        onSubmit={({ text }) => {
+          const value = text.trim();
+          setDraft('');
+          if (value) controller.send(value);
+        }}
+      >
+        <PromptInputBody>
+          <PromptInputTextarea
+            className="max-h-32 min-h-9 text-sm"
+            placeholder="和它说点什么…"
+            aria-label="消息"
+            onChange={(event) => setDraft(event.target.value)}
+          />
+        </PromptInputBody>
+        <PromptInputFooter>
+          <PromptInputTools />
+          <PromptInputSubmit
+            status={streaming ? 'streaming' : 'ready'}
+            aria-label={streaming ? '停止回复' : '发送'}
+            disabled={!streaming && draft.trim().length === 0}
+            onClick={(event) => {
+              if (!streaming) return;
+              event.preventDefault();
+              controller.stop();
+            }}
+          />
+        </PromptInputFooter>
+      </PromptInput>
     </section>
   );
 }
