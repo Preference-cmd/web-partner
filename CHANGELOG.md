@@ -64,6 +64,23 @@ change states its migration at the top of the release it ships in.
   sidebar names the local user instead of a hard-coded person, both version
   labels read 0.1.0, and the toggle icons are inline SVG instead of platform
   glyphs.
+- The interface is rebuilt on shadcn/ui with a Tailwind token layer (neutral
+  dark, `--radius` 0.625rem). The sidebar, chat panel, settings page and debug
+  panel are React islands built from the default components, and the
+  hand-written stylesheet is gone. Routes, storage keys (`partner.chat.v1`,
+  `partner.settings.v1`, `partner.secret.v1`), the chat controller and the
+  `--panel-h`/`--panel-lift` geometry are unchanged, so nothing migrates.
+- Destructive actions ask in a dialog instead of `window.confirm`: clearing
+  the conversation, clearing local history, removing the API key and restoring
+  defaults.
+- Saving is confirmed by a toast instead of the inline chip in the settings
+  status line; that line keeps the mode in force and the reason for it.
+- On phones the sidebar and the debug panel open as sheets with a focus trap,
+  Escape to close and a dimmed backdrop; the sidebar collapses to a floating
+  trigger on desktop.
+- The debug panel reads the live chat store (emotion, mode, message count)
+  instead of fixed sample values; its forced emotion and lighting switches stay
+  disabled until the controller exposes them.
 
 ### Notes
 
