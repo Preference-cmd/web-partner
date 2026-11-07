@@ -35,6 +35,7 @@ const { active = "chat", license = true } = Astro.props;
     </div>
   </div>
 </aside>
+<button class="scrim" id="scrim" type="button" aria-label="收起侧边栏"></button>
 
 <script>
   import { applyModeChip, describeMode, loadSettings, readApiKey } from "../lib/chat/settings";
@@ -48,6 +49,11 @@ const { active = "chat", license = true } = Astro.props;
     applyModeChip(document, mode);
   }
 
-  document.addEventListener("astro:page-load", syncMode);
+  document.addEventListener("astro:page-load", () => {
+    syncMode();
+    document.getElementById("scrim")?.addEventListener("click", () => {
+      document.body.classList.add("sidebar-off");
+    });
+  });
   syncMode();
 </script>

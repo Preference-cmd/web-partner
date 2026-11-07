@@ -45,6 +45,7 @@ export default function ChatPanel() {
   const emotion = useStore(controller.store, (state) => state.emotion);
   const [draft, setDraft] = useState('');
   const [collapsed, setCollapsed] = useState(false);
+  const panelRef = useRef<HTMLElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
 
@@ -58,6 +59,27 @@ export default function ChatPanel() {
 
   useEffect(() => {
     applyAppearance(document.documentElement, loadSettings(window.localStorage));
+  }, []);
+
+  // The stage needs the panel's height to keep the figure clear of it.
+  useEffect(() => {
+    const node = panelRef.current;
+    if (!node) return;
+    const root = document.documentElement;
+    const sync = (): void => {
+      const height = node.offsetHeight;
+      const lift = Math.max(0, Math.min(150, height - root.clientHeight * 0.46));
+      root.style.setProperty('--panel-h', `${height}px`);
+      root.style.setProperty('--panel-lift', `${Math.round(lift)}px`);
+    };
+    sync();
+    const observer = new ResizeObserver(sync);
+    observer.observe(node);
+    window.addEventListener('resize', sync);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', sync);
+    };
   }, []);
 
   useEffect(() => {
@@ -90,7 +112,7 @@ export default function ChatPanel() {
   }
 
   return (
-    <section className={`chat${collapsed ? ' collapsed' : ''}`} aria-label="对话">
+    <section ref={panelRef} className={`chat${collapsed ? ' collapsed' : ''}`} aria-label="对话">
       <div className="chat-head">
         <div className="who">
           <span className="dot" data-emotion={emotion} />
