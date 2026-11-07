@@ -1,0 +1,54 @@
+---
+import "../styles/global.css";
+import Sidebar from "../components/Sidebar.astro";
+import DebugPanel from "../components/DebugPanel.astro";
+
+interface Props {
+  title?: string;
+}
+const { title = "伴侣小生命" } = Astro.props;
+---
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+  </head>
+  <body>
+    <div class="app">
+      <Sidebar active="chat" />
+      <main class="stage">
+        <div class="vignette"></div>
+        <div class="dust"><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="float-toggles">
+          <button class="fbtn" id="btn-side" type="button" title="收起 / 展开侧边栏">☰</button>
+          <button class="fbtn" id="btn-panel" type="button" title="调试面板">▤</button>
+        </div>
+        <div class="figure">
+          <div class="glow"></div>
+          <div class="body"></div>
+          <div class="head"></div>
+          <div class="tag"><b>角色立绘占位</b> · 后续替换为 2.5D 素材</div>
+        </div>
+        <slot />
+      </main>
+      <DebugPanel />
+    </div>
+    <script is:inline>
+      const body = document.body;
+      document.getElementById("btn-side")?.addEventListener("click", () => {
+        body.classList.toggle("sidebar-off");
+      });
+      document.getElementById("btn-panel")?.addEventListener("click", () => {
+        body.classList.toggle("panel-on");
+      });
+      document.getElementById("btn-close")?.addEventListener("click", () => {
+        body.classList.remove("panel-on");
+      });
+      if (window.matchMedia("(max-width: 900px)").matches) {
+        body.classList.add("sidebar-off");
+      }
+    </script>
+  </body>
+</html>

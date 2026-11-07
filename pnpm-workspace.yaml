@@ -4,10 +4,19 @@
 #                wrangler.jsonc and its own `build` / `deploy` scripts
 #   packages/*   code shared by apps; never deployed on its own
 #
-# Neither directory exists yet — the stack proposal, kept with the other
-# working material outside the repository, creates them. The globs are already
-# correct for that layout, and the root scripts use `--if-present` so an empty
-# workspace is not a failure.
+# apps/web currently holds the layout shell; packages/ arrives when shared code
+# is extracted. The root scripts use `--if-present` so an empty workspace is not
+# a failure.
 packages:
   - apps/*
   - packages/*
+
+# pnpm 10 blocks dependency build scripts unless they are listed here.
+onlyBuiltDependencies:
+  - esbuild
+  - workerd
+
+# @napi-rs/wasm-runtime accepts runtime 2.0.0-beta, which breaks against
+# @emnapi/core 1.11.3 (astro2tsx used by `astro check`). Pin the stable line.
+overrides:
+  "@emnapi/runtime": "1.11.3"

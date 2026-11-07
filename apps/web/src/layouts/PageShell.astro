@@ -1,0 +1,38 @@
+---
+import "../styles/global.css";
+import Sidebar from "../components/Sidebar.astro";
+
+interface Props {
+  title: string;
+  active?: "chat" | "settings";
+}
+const { title, active = "settings" } = Astro.props;
+---
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+  </head>
+  <body>
+    <div class="app">
+      <Sidebar active={active} />
+      <main class="page">
+        <div class="page-inner">
+          <slot />
+        </div>
+      </main>
+    </div>
+    <button class="fbtn" id="btn-side" type="button" title="收起 / 展开侧边栏" style="position:fixed;top:14px;right:14px;z-index:5">☰</button>
+    <script is:inline>
+      const body = document.body;
+      document.getElementById("btn-side")?.addEventListener("click", () => {
+        body.classList.toggle("sidebar-off");
+      });
+      if (window.matchMedia("(max-width: 900px)").matches) {
+        body.classList.add("sidebar-off");
+      }
+    </script>
+  </body>
+</html>
