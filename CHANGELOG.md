@@ -63,6 +63,9 @@ change states its migration at the top of the release it ships in.
 
 ### Changed
 
+- The code is MIT-licensed (`LICENSE`). The character art in
+  `apps/web/public/character/` stays outside that grant, under CC BY-NC-SA 4.0;
+  `NOTICE.md` states the boundary. No behaviour changes.
 - Stored history moved from one record to a session index:
   `partner.sessions.v1` holds `{ activeId, sessions }` and
   `partner.session.<id>.v1` holds one transcript. An existing

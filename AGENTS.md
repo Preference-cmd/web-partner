@@ -30,6 +30,7 @@ scripts/               # repo helpers run by hooks, CI or a package
 .github/dependabot.yml # weekly grouped dependency updates
 AGENTS.md              # this file
 CLAUDE.md -> AGENTS.md
+LICENSE                # MIT for the code; the character art is separate (NOTICE.md)
 ```
 
 `node_modules/`, `dist/`, `.wrangler/`, `.astro/`, `coverage/`, `.env*` and
@@ -55,6 +56,7 @@ Read a fact here before asserting it — never from memory:
 | deploy steps and secrets                      | `.github/workflows/deploy.yml`, `apps/*/wrangler.jsonc` |
 | browser storage keys, limits and migration    | `apps/web/src/lib/chat/session-storage.ts`, `apps/web/src/lib/chat/settings.ts`, `apps/web/src/lib/debug/prefs.ts` |
 | chat proxy limits and validation              | `apps/web/src/lib/chat/proxy.ts`                  |
+| code license                                  | `LICENSE`                                         |
 | character art license                         | `NOTICE.md`, `apps/web/public/character/ATTRIBUTION.md` |
 | unfinished decisions and their reasoning      | `.agents/pipelines/proposals/` (local)            |
 | what is in scope, and what counts as done     | `.agents/pipelines/proposals/` (local)            |

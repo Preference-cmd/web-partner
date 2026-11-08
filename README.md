@@ -86,7 +86,8 @@ previous version.
 
 ## License
 
-Private — all rights reserved. The character art in
-`apps/web/public/character/` is the exception: it is licensed CC BY-NC-SA 4.0
-for this non-commercial demo. See `NOTICE.md` and
+The code is MIT-licensed — see [`LICENSE`](LICENSE). The character art in
+`apps/web/public/character/` is not: it stays under CC BY-NC-SA 4.0
+(non-commercial, share-alike) and any adaptation of it inherits that licence.
+`NOTICE.md` states the boundary; attribution is in
 `apps/web/public/character/ATTRIBUTION.md`.
