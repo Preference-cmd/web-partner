@@ -1,4 +1,5 @@
 import { TEMPERATURE } from './llm';
+import type { Effort } from './settings';
 import { readSse, readText } from './sse';
 import type { ModelMessage } from './types';
 
@@ -8,6 +9,8 @@ export interface ChatRequest {
   model: string;
   messages: ModelMessage[];
   maxOutputTokens: number;
+  /** Thinking intensity for a reasoning model; 'off' leaves the field out. */
+  reasoningEffort: Effort;
   direct: boolean;
 }
 
@@ -19,6 +22,14 @@ export type StreamTransport = (
 
 function trimSlash(value: string): string {
   return value.replace(/\/+$/u, '');
+}
+
+/**
+ * A plain model can reject an unknown field, so 'off' sends nothing rather than
+ * a neutral value.
+ */
+function effortField(effort: Effort): { reasoning_effort?: string } {
+  return effort === 'off' ? {} : { reasoning_effort: effort };
 }
 
 /**
@@ -40,6 +51,7 @@ export const streamChat: StreamTransport = async (request, signal, onDelta) => {
         stream: true,
         temperature: TEMPERATURE,
         max_tokens: request.maxOutputTokens,
+        ...effortField(request.reasoningEffort),
       }),
       signal,
     });
@@ -58,6 +70,7 @@ export const streamChat: StreamTransport = async (request, signal, onDelta) => {
       model: request.model,
       messages: request.messages,
       maxOutputTokens: request.maxOutputTokens,
+      ...(request.reasoningEffort === 'off' ? {} : { reasoningEffort: request.reasoningEffort }),
     }),
     signal,
   });

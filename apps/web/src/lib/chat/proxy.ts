@@ -10,6 +10,7 @@ import {
   MAX_MESSAGE_PARTS_BYTES,
   MAX_MESSAGES,
   OUTPUT_DEFAULT,
+  REASONING_EFFORTS,
   TEMPERATURE,
 } from './llm';
 
@@ -18,12 +19,16 @@ export const IDLE_TIMEOUT_MS = 30 * 1000;
 
 const encoder = new TextEncoder();
 
+type ReasoningEffort = (typeof REASONING_EFFORTS)[number];
+
 interface ChatBody {
   endpoint: string;
   apiKey: string;
   model: string;
   messages: ModelMessage[];
   maxOutputTokens: number;
+  /** Null sends no field at all; a non-reasoning model rejects an unknown one. */
+  reasoningEffort: ReasoningEffort | null;
 }
 
 function fail(status: number, error: string): Response {
@@ -165,9 +170,27 @@ function readBody(raw: unknown): ChatBody | string {
     }
     maxOutputTokens = clampOutputTokens(record.maxOutputTokens);
   }
+  let reasoningEffort: ReasoningEffort | null = null;
+  const requestedEffort = record.reasoningEffort;
+  if (requestedEffort !== undefined && requestedEffort !== 'off') {
+    if (
+      typeof requestedEffort !== 'string' ||
+      !(REASONING_EFFORTS as readonly string[]).includes(requestedEffort)
+    ) {
+      return 'reasoningEffort is not supported';
+    }
+    reasoningEffort = requestedEffort as ReasoningEffort;
+  }
   const messages = readMessages(record.messages);
   if (typeof messages === 'string') return messages;
-  return { endpoint, apiKey: record.apiKey, model: record.model, messages, maxOutputTokens };
+  return {
+    endpoint,
+    apiKey: record.apiKey,
+    model: record.model,
+    messages,
+    maxOutputTokens,
+    reasoningEffort,
+  };
 }
 
 /**
@@ -225,6 +248,9 @@ export async function handleChat(request: Request): Promise<Response> {
     messages: conversation,
     temperature: TEMPERATURE,
     maxOutputTokens: body.maxOutputTokens,
+    ...(body.reasoningEffort
+      ? { providerOptions: { openaiCompatible: { reasoningEffort: body.reasoningEffort } } }
+      : {}),
     abortSignal: request.signal,
     timeout: { firstChunkMs: CONNECT_TIMEOUT_MS, chunkMs: IDLE_TIMEOUT_MS },
     onError: (error) => {

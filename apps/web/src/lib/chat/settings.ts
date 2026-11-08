@@ -1,5 +1,11 @@
 import { dropKey, readKey, type StringStorage, writeKey } from '../storage';
-import { CONTEXT_DEFAULT, clampContextTokens, clampOutputTokens, OUTPUT_DEFAULT } from './llm';
+import {
+  CONTEXT_DEFAULT,
+  clampContextTokens,
+  clampOutputTokens,
+  OUTPUT_DEFAULT,
+  REASONING_EFFORTS,
+} from './llm';
 import type { ChatMode } from './types';
 
 export type { StringStorage } from '../storage';
@@ -13,7 +19,11 @@ export const ALPHA_DEFAULT = 0.62;
 
 export type Motion = 'system' | 'reduced' | 'full';
 
-export type Effort = 'light' | 'standard' | 'deep' | 'custom';
+/**
+ * Thinking intensity sent as `reasoning_effort`. 'off' omits the field, so a
+ * model that is not a reasoning model never receives it.
+ */
+export type Effort = 'off' | (typeof REASONING_EFFORTS)[number];
 
 export interface ModelPreset {
   id: string;
@@ -21,22 +31,22 @@ export interface ModelPreset {
   model: string;
 }
 
-export interface EffortPresets {
-  light: number;
-  standard: number;
-  deep: number;
-}
-
 /** One dropdown, not a model zoo. */
 export const MODEL_PRESET_LIMIT = 8;
 
-export const EFFORT_LABEL: Record<Exclude<Effort, 'custom'>, string> = {
-  light: '轻',
-  standard: '标准',
-  deep: '深入',
+export const EFFORT_LABEL: Record<Effort, string> = {
+  off: '关',
+  minimal: '最低',
+  low: '低',
+  medium: '中',
+  high: '高',
 };
 
-export const DEFAULT_EFFORT_PRESETS: EffortPresets = {
+/** Menu order: no field first, then what a reasoning model understands. */
+export const EFFORT_ORDER: readonly Effort[] = ['off', 'minimal', 'low', 'medium', 'high'];
+
+/** Older files stored the effort label as this output budget. */
+const LEGACY_EFFORT_TOKENS: Record<string, number> = {
   light: 512,
   standard: OUTPUT_DEFAULT,
   deep: 2048,
@@ -56,7 +66,6 @@ export interface Settings {
   panelHeight: number | null;
   modelPresets: ModelPreset[];
   effort: Effort;
-  effortPresets: EffortPresets;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -71,8 +80,7 @@ export const DEFAULT_SETTINGS: Settings = {
   motion: 'system',
   panelHeight: null,
   modelPresets: [],
-  effort: 'standard',
-  effortPresets: { ...DEFAULT_EFFORT_PRESETS },
+  effort: 'off',
 };
 
 function parseAlpha(value: unknown): number {
@@ -107,32 +115,31 @@ function parseModelPresets(value: unknown): ModelPreset[] {
   return presets;
 }
 
+/** Anything else, a legacy budget label included, means no reasoning_effort. */
 function parseEffort(value: unknown): Effort {
-  return value === 'light' || value === 'standard' || value === 'deep' || value === 'custom'
-    ? value
-    : 'standard';
+  if (typeof value !== 'string') return 'off';
+  return value === 'off' || (REASONING_EFFORTS as readonly string[]).includes(value)
+    ? (value as Effort)
+    : 'off';
 }
 
-function parseEffortPresets(value: unknown): EffortPresets {
-  const record =
-    typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
-  const read = (key: keyof EffortPresets): number => {
-    const raw = record[key];
-    return typeof raw === 'number' && Number.isFinite(raw)
-      ? clampOutputTokens(raw)
-      : DEFAULT_EFFORT_PRESETS[key];
-  };
-  return { light: read('light'), standard: read('standard'), deep: read('deep') };
-}
-
-/** Tokens the active effort asks for; a custom effort keeps the raw budget. */
-export function effortTokens(settings: Settings): number {
-  return settings.effort === 'custom'
-    ? settings.maxOutputTokens
-    : settings.effortPresets[settings.effort];
-}
-
-function parseOutputTokens(value: unknown): number {
+/**
+ * An older file chose the effort as a token budget: keep that budget and drop
+ * the label, which is exactly the request it used to send.
+ */
+function parseOutputTokens(record: Record<string, unknown>): number {
+  const effort = record.effort;
+  if (effort === 'light' || effort === 'standard' || effort === 'deep') {
+    const presets = record.effortPresets;
+    const stored =
+      typeof presets === 'object' && presets !== null
+        ? (presets as Record<string, unknown>)[effort]
+        : undefined;
+    return typeof stored === 'number' && Number.isFinite(stored)
+      ? clampOutputTokens(stored)
+      : (LEGACY_EFFORT_TOKENS[effort] ?? OUTPUT_DEFAULT);
+  }
+  const value = record.maxOutputTokens;
   return typeof value === 'number' && Number.isFinite(value)
     ? clampOutputTokens(value)
     : OUTPUT_DEFAULT;
@@ -157,7 +164,7 @@ export function loadSettings(storage: StringStorage | undefined): Settings {
       mode: record.mode === 'live' ? 'live' : 'demo',
       forceDemo: record.forceDemo === true,
       direct: record.direct === true,
-      maxOutputTokens: parseOutputTokens(record.maxOutputTokens),
+      maxOutputTokens: parseOutputTokens(record),
       contextTokens: parseContextTokens(record.contextTokens),
       panelAlpha: parseAlpha(record.panelAlpha),
       motion: parseMotion(record.motion),
@@ -167,7 +174,6 @@ export function loadSettings(storage: StringStorage | undefined): Settings {
           : null,
       modelPresets: parseModelPresets(record.modelPresets),
       effort: parseEffort(record.effort),
-      effortPresets: parseEffortPresets(record.effortPresets),
     };
   } catch {
     return { ...DEFAULT_SETTINGS };

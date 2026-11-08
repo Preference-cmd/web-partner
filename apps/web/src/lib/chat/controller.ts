@@ -470,6 +470,7 @@ export function createChatController(deps: ChatControllerDeps = {}): ChatControl
       model: config.settings.model,
       messages: buildModelMessages(history, config.settings.contextTokens),
       maxOutputTokens: config.settings.maxOutputTokens,
+      reasoningEffort: config.settings.effort,
       direct: config.settings.direct,
     };
     const parser = createStreamParser({

@@ -21,8 +21,9 @@ key stay in the browser.
   and three quick actions answer without a model.
 - **Bring your own model.** Any OpenAI-compatible endpoint works through the
   Worker, or directly from the browser for a local model. Up to eight model
-  presets sit behind the composer's model menu, and the 努力 menu switches the
-  output budget between light, standard, deep and a custom value.
+  presets sit behind the composer's model menu, and the 努力 menu picks how hard
+  a reasoning model should think, sent as `reasoning_effort`; it stays off by
+  default, so a plain model never receives the field.
 - **Attachments without a server.** Up to four images (1 MB each) or plain
   text files (64 KB each) per message; they are sent inline with that turn and
   never stored, so a reloaded conversation shows the filename marked 已过期.
@@ -30,9 +31,9 @@ key stay in the browser.
   kept in the browser, with switch, inline rename, delete and a one-time
   migration from `partner.chat.v1`.
 - **Settings and a debug drawer.** A settings dialog over the chat holds the
-  connection, the model call (output budget and context window), mode and
-  appearance, while the drawer exposes the pose, FPS, log lines, forced moods
-  and stage lighting.
+  connection, the model call (output budget, context window and thinking
+  intensity), mode and appearance, while the drawer exposes the pose, FPS, log
+  lines, forced moods and stage lighting.
 - **Details that matter.** `Cmd/Ctrl+K` or `/` focuses the composer,
   destructive actions ask in dialogs, and the layout becomes sheets on phones.
 
@@ -62,8 +63,10 @@ pnpm check       # lint, typecheck, test, build
 2. Enter the base URL without `/chat/completions`, the model name and the key.
 3. Switch the mode to 实时; use 直连端点 for a local `http` endpoint or one that
    does not allow CORS.
-4. Optionally save model presets (up to eight) and tune the three 努力 presets;
-   the composer menus then switch model and effort without opening settings.
+4. Optionally save model presets (up to eight) and pick a 思考强度 level; the
+   composer menus then switch model and effort without opening settings. The
+   output budget stays a separate number: a reasoning model spends it while it
+   thinks, so raise it when answers stop mid-sentence.
 
 The sidebar chip names the mode in force. The key lives in `sessionStorage` and
 is gone when the tab closes; a failed upstream falls back to a labelled template

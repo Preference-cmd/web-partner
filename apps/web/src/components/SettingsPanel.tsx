@@ -51,7 +51,8 @@ import {
   DEFAULT_SETTINGS,
   describeMode,
   EFFORT_LABEL,
-  type EffortPresets,
+  EFFORT_ORDER,
+  type Effort,
   endpointHint,
   loadSettings,
   MODEL_PRESET_LIMIT,
@@ -311,14 +312,6 @@ export default function SettingsPanel() {
     update({ modelPresets: settings.modelPresets.filter((preset) => preset.id !== id) });
   }
 
-  function commitEffortPreset(id: keyof EffortPresets, value: number): void {
-    update({
-      effortPresets: { ...settings.effortPresets, [id]: value },
-      ...(settings.effort === id ? { maxOutputTokens: value } : {}),
-    });
-    toast.success('努力预设已保存');
-  }
-
   function clearHistory(): void {
     const controller = chatController();
     if (controller) {
@@ -538,7 +531,7 @@ export default function SettingsPanel() {
             <Row
               htmlFor="set-output"
               title="输出预算"
-              description="回复最多生成这么多 token。推理型端点会先用预算思考，太小会在正文中间截断。直接改这里会切到「自定义」。"
+              description="这一轮最多生成多少 token，思考的 token 也算在里面。推理模型开到高档时给太小，答案会在正文中间截断。"
             >
               <div className="flex items-center gap-2">
                 <TokenField
@@ -547,7 +540,7 @@ export default function SettingsPanel() {
                   min={OUTPUT_MIN}
                   max={OUTPUT_MAX}
                   onCommit={(value) => {
-                    update({ maxOutputTokens: value, effort: 'custom' });
+                    update({ maxOutputTokens: value });
                     toast.success('输出预算已保存');
                   }}
                 />
@@ -575,26 +568,33 @@ export default function SettingsPanel() {
               </div>
             </Row>
 
-            <Row
-              title="努力预设"
-              description="轻 / 标准 / 深入三档各用多少输出 token；对话输入框旁的「努力」菜单随手切换，选中哪档就按哪档的预算走。"
+            <Block
+              title="思考强度"
+              description="推理模型的思考强度，请求里作为 reasoning_effort 发给端点。默认关：不带这个字段，普通模型不会因为多一个参数报错；端点不支持某一档时也会直接拒绝。"
             >
-              <div className="flex flex-col gap-2">
-                {(['light', 'standard', 'deep'] as const).map((id) => (
-                  <div key={id} className="flex items-center gap-2">
-                    <span className="w-10 text-sm text-muted-foreground">{EFFORT_LABEL[id]}</span>
-                    <TokenField
-                      id={`set-effort-${id}`}
-                      max={OUTPUT_MAX}
-                      min={OUTPUT_MIN}
-                      value={settings.effortPresets[id]}
-                      onCommit={(value) => commitEffortPreset(id, value)}
-                    />
-                    <span className="text-sm text-muted-foreground">tokens</span>
-                  </div>
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                value={settings.effort}
+                aria-label="思考强度"
+                className="flex-wrap justify-start"
+                onValueChange={(value) => {
+                  if (!value) return;
+                  update({ effort: value as Effort });
+                  toast.success(
+                    value === 'off'
+                      ? '已关闭思考强度'
+                      : `思考强度：${EFFORT_LABEL[value as Effort]}`,
+                  );
+                }}
+              >
+                {EFFORT_ORDER.map((id) => (
+                  <ToggleGroupItem key={id} value={id}>
+                    {EFFORT_LABEL[id]}
+                  </ToggleGroupItem>
                 ))}
-              </div>
-            </Row>
+              </ToggleGroup>
+            </Block>
           </Section>
 
           <Section id="mode" title="模式">

@@ -14,10 +14,8 @@ import {
   applyAppearance,
   clearApiKey,
   clearSettings,
-  DEFAULT_EFFORT_PRESETS,
   DEFAULT_SETTINGS,
   describeMode,
-  effortTokens,
   endpointHint,
   loadSettings,
   MODEL_PRESET_LIMIT,
@@ -246,30 +244,38 @@ describe('settings', () => {
     expect(loaded.modelPresets).toHaveLength(MODEL_PRESET_LIMIT);
   });
 
-  it('reads the effort and clamps its presets', () => {
-    const read = (patch: Record<string, unknown>) =>
+  it('reads a reasoning effort and ignores an unknown one', () => {
+    const read = (effort: unknown) =>
       loadSettings(
-        memoryStorage({
-          [SETTINGS_KEY]: JSON.stringify({ ...DEFAULT_SETTINGS, ...patch }),
-        }),
-      );
-    expect(read({ effort: 'deep' }).effort).toBe('deep');
-    expect(read({ effort: 'custom' }).effort).toBe('custom');
-    expect(read({ effort: 'turbo' }).effort).toBe('standard');
-    expect(read({ effortPresets: { light: 1, standard: 99999, deep: 777 } }).effortPresets).toEqual(
-      { light: OUTPUT_MIN, standard: OUTPUT_MAX, deep: 777 },
-    );
-    expect(read({ effortPresets: null }).effortPresets).toEqual(DEFAULT_EFFORT_PRESETS);
+        memoryStorage({ [SETTINGS_KEY]: JSON.stringify({ ...DEFAULT_SETTINGS, effort }) }),
+      ).effort;
+    expect(read('off')).toBe('off');
+    expect(read('minimal')).toBe('minimal');
+    expect(read('high')).toBe('high');
+    expect(read('standard')).toBe('off');
+    expect(read('turbo')).toBe('off');
+    expect(read(42)).toBe('off');
   });
 
-  it('derives the request budget from the active effort', () => {
-    const base = {
-      ...DEFAULT_SETTINGS,
-      effortPresets: { light: 100, standard: 200, deep: 300 },
-      maxOutputTokens: 999,
-    };
-    expect(effortTokens({ ...base, effort: 'light' })).toBe(100);
-    expect(effortTokens({ ...base, effort: 'deep' })).toBe(300);
-    expect(effortTokens({ ...base, effort: 'custom' })).toBe(999);
+  it('turns an older effort budget into a plain output budget', () => {
+    const legacy = (effort: unknown, extra: Record<string, unknown> = {}) =>
+      loadSettings(
+        memoryStorage({
+          [SETTINGS_KEY]: JSON.stringify({ ...DEFAULT_SETTINGS, effort, ...extra }),
+        }),
+      );
+    expect(legacy('light')).toMatchObject({ effort: 'off', maxOutputTokens: 512 });
+    expect(legacy('standard')).toMatchObject({ effort: 'off', maxOutputTokens: OUTPUT_DEFAULT });
+    expect(
+      legacy('deep', { effortPresets: { light: 128, standard: 256, deep: 3000 } }),
+    ).toMatchObject({ effort: 'off', maxOutputTokens: 3000 });
+    expect(legacy('custom', { maxOutputTokens: 777 })).toMatchObject({
+      effort: 'off',
+      maxOutputTokens: 777,
+    });
+    expect(legacy('off', { maxOutputTokens: 1500 })).toMatchObject({
+      effort: 'off',
+      maxOutputTokens: 1500,
+    });
   });
 });

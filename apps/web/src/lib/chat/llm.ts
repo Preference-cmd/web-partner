@@ -12,6 +12,9 @@ export const OUTPUT_MIN = 64;
 export const OUTPUT_MAX = 4096;
 export const OUTPUT_DEFAULT = 1024;
 
+/** Values forwarded as `reasoning_effort`; 'off' sends no field at all. */
+export const REASONING_EFFORTS = ['minimal', 'low', 'medium', 'high'] as const;
+
 export const CONTEXT_MIN = 1000;
 export const CONTEXT_MAX = 32000;
 export const CONTEXT_DEFAULT = 4000;

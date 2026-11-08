@@ -98,6 +98,31 @@ describe('chat proxy', () => {
     );
   });
 
+  it('forwards a reasoning effort and rejects an unknown one', async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(sseChunks(), {
+          status: 200,
+          headers: { 'content-type': 'text/event-stream' },
+        }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await (await handleChat(makeRequest({ ...baseBody, reasoningEffort: 'high' }))).text();
+    await (await handleChat(makeRequest({ ...baseBody, reasoningEffort: 'off' }))).text();
+
+    const bodies = fetchMock.mock.calls.map(
+      (call) =>
+        JSON.parse(String((call as unknown as FetchCall)[1].body)) as Record<string, unknown>,
+    );
+    expect(bodies[0]?.reasoning_effort).toBe('high');
+    expect(bodies[1]).not.toHaveProperty('reasoning_effort');
+    expect((await handleChat(makeRequest({ ...baseBody, reasoningEffort: 'turbo' }))).status).toBe(
+      400,
+    );
+    expect((await handleChat(makeRequest({ ...baseBody, reasoningEffort: 3 }))).status).toBe(400);
+  });
+
   it('rejects a cross-origin request before calling upstream', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);

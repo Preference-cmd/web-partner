@@ -23,6 +23,7 @@ const request: ChatRequest = {
   model: 'demo-model',
   messages: [{ role: 'user', content: 'hi' }],
   maxOutputTokens: 2048,
+  reasoningEffort: 'off',
   direct: false,
 };
 
@@ -71,7 +72,40 @@ describe('chat transport', () => {
     const body = JSON.parse(String(call[1].body)) as Record<string, unknown>;
     expect(body.stream).toBe(true);
     expect(body.max_tokens).toBe(2048);
+    expect(body).not.toHaveProperty('reasoning_effort');
     expect(deltas.join('')).toBe('你好');
+  });
+
+  it('adds reasoning_effort in direct mode only when the effort is on', async () => {
+    const fetchMock = vi.fn(async () => new Response(sseBody(), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await streamChat(
+      { ...request, direct: true, reasoningEffort: 'high' },
+      new AbortController().signal,
+      () => undefined,
+    );
+    const call = fetchMock.mock.calls[0] as unknown as FetchCall;
+    if (!call) throw new Error('fetch was not called');
+    const body = JSON.parse(String(call[1].body)) as Record<string, unknown>;
+    expect(body.reasoning_effort).toBe('high');
+    expect(body.max_tokens).toBe(2048);
+  });
+
+  it('forwards the effort to the proxy only when it is on', async () => {
+    const fetchMock = vi.fn(async () => new Response(textBody(['你好']), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await streamChat(
+      { ...request, reasoningEffort: 'medium' },
+      new AbortController().signal,
+      () => undefined,
+    );
+    await streamChat(request, new AbortController().signal, () => undefined);
+    const bodies = fetchMock.mock.calls.map(
+      (call) =>
+        JSON.parse(String((call as unknown as FetchCall)[1].body)) as Record<string, unknown>,
+    );
+    expect(bodies[0]?.reasoningEffort).toBe('medium');
+    expect(bodies[1]).not.toHaveProperty('reasoningEffort');
   });
 
   it('throws with the proxy status and reason', async () => {

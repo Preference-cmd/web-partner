@@ -67,11 +67,16 @@ change states its migration at the top of the release it ships in.
   content parts through `/api/chat`; the transcript keeps only each file's
   name, type and size, so opening the conversation again shows them marked
   已过期 instead of quietly dropping them.
-- Model presets and effort presets. Settings can store up to eight model names
-  for the current endpoint and define what 轻 / 标准 / 深入 mean in output
-  tokens; the composer shows a model menu and an effort menu, and switching
-  either writes the setting the next request reads. On phones the two menus
-  collapse into one.
+- Model presets and thinking intensity. Settings can store up to eight model
+  names for the current endpoint and choose how hard a reasoning model should
+  think (关 / 最低 / 低 / 中 / 高), which the request carries as
+  `reasoning_effort`; the composer shows a model menu and an effort menu, and
+  switching either writes the setting the next request reads. On phones the two
+  menus collapse into one. The output budget stays its own number, because
+  thinking spends it. A setting saved before this change kept the effort as a
+  token budget: it is migrated on read, the number moves to the output budget
+  and the effort starts at 关, so the first request after an update is
+  byte-for-byte what the previous version sent.
 - The conversation panel can be resized: drag its top edge, nudge it with the
   arrow keys (Home / End jump to the limits, Enter goes back to automatic), or
   double-click the handle. The height is stored in `partner.settings.v1` as
@@ -94,9 +99,10 @@ change states its migration at the top of the release it ships in.
 - Copy that described unfinished plans is gone: the login page states that the
   demo has no account system, and the settings page no longer shows a lighting
   row that only pointed at the debug drawer.
-- `/api/chat` accepts content parts (text plus base64 images) and raises the
-  request body cap from 512 KB to 2 MB; a text part keeps the 2 KB limit, an
-  image must be a base64 data URL of a supported type and at most 1 MB.
+- `/api/chat` accepts content parts (text plus base64 images), an optional
+  `reasoningEffort` level, and raises the request body cap from 512 KB to 2 MB;
+  a text part keeps the 2 KB limit, an image must be a base64 data URL of a
+  supported type and at most 1 MB.
 - The composer follows the shadcn Prompt Input shape: one rounded input
   group, a p-3 text area, pill-shaped controls and an ArrowUp send button.
   Exports keep their names, so the chat panel only changes how it composes them.

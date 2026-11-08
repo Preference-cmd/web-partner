@@ -197,7 +197,7 @@ describe('chat controller', () => {
       message('w' + index, index % 2 === 0 ? 'user' : 'assistant', '旧'.repeat(60) + index),
     );
     const run = makeHarness({
-      settings: { ...liveSettings, maxOutputTokens: 2048, contextTokens: 120 },
+      settings: { ...liveSettings, maxOutputTokens: 2048, contextTokens: 120, effort: 'high' },
       apiKey: 'sk-test',
       stored: { messages: stored, pendingId: null },
     });
@@ -214,6 +214,7 @@ describe('chat controller', () => {
       0,
     );
     expect(request?.maxOutputTokens).toBe(2048);
+    expect(request?.reasoningEffort).toBe('high');
     expect(total).toBeLessThanOrEqual(120);
     expect(body.length).toBeGreaterThan(1);
     expect(body.length).toBeLessThan(40);

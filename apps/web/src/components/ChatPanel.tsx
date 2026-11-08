@@ -79,8 +79,8 @@ import {
   applyAppearance,
   DEFAULT_SETTINGS,
   EFFORT_LABEL,
+  EFFORT_ORDER,
   type Effort,
-  effortTokens,
   loadSettings,
   readApiKey,
   resolveMode,
@@ -517,12 +517,7 @@ export default function ChatPanel() {
   }
 
   function pickEffort(effort: Effort): void {
-    const next = {
-      ...settings,
-      effort,
-      maxOutputTokens:
-        effort === 'custom' ? settings.maxOutputTokens : settings.effortPresets[effort],
-    };
+    const next = { ...settings, effort };
     setSettings(next);
     saveSettings(window.localStorage, next);
     announceSettings();
@@ -548,10 +543,7 @@ export default function ChatPanel() {
   }
 
   const modelLabel = settings.model.trim() || '未设模型';
-  const effortLabel =
-    settings.effort === 'custom'
-      ? `自定义 · ${effortTokens(settings)}`
-      : `${EFFORT_LABEL[settings.effort]} · ${effortTokens(settings)}`;
+  const effortLabel = EFFORT_LABEL[settings.effort];
 
   const modelItems =
     settings.modelPresets.length === 0 ? (
@@ -571,15 +563,11 @@ export default function ChatPanel() {
       value={settings.effort}
       onValueChange={(value) => pickEffort(value as Effort)}
     >
-      {(['light', 'standard', 'deep'] as const).map((id) => (
+      {EFFORT_ORDER.map((id) => (
         <DropdownMenuRadioItem key={id} value={id}>
-          {EFFORT_LABEL[id]} · {settings.effortPresets[id]}
+          {EFFORT_LABEL[id]}
         </DropdownMenuRadioItem>
       ))}
-      <DropdownMenuSeparator />
-      <DropdownMenuRadioItem value="custom">
-        自定义 · {settings.maxOutputTokens}
-      </DropdownMenuRadioItem>
     </DropdownMenuRadioGroup>
   );
 
