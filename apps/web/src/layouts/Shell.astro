@@ -41,6 +41,7 @@ const { title = "伴侣小生命" } = Astro.props;
           >
           </div>
           <canvas class="stage-canvas" data-character-canvas aria-hidden="true"></canvas>
+          <p class="stage-bubble" data-character-bubble data-visible="false" role="status"></p>
           <p class="stage-fallback">角色暂时没有出现</p>
         </div>
         <slot />

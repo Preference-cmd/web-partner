@@ -182,6 +182,50 @@ html[data-light="dawn"] {
   background-color: var(--stage-dust);
 }
 
+/* The stage bubble: a line the character says without touching the chat. */
+.stage-bubble {
+  position: absolute;
+  top: 3%;
+  left: 50%;
+  translate: -50% 0;
+  width: max-content;
+  max-width: min(240px, 70vw);
+  margin: 0;
+  padding: 0.5rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  background: color-mix(in oklab, var(--card) 90%, transparent);
+  color: var(--card-foreground);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  box-shadow: 0 12px 30px rgb(0 0 0 / 35%);
+  backdrop-filter: blur(12px);
+  opacity: 0;
+  transform: translateY(6px);
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+
+.stage-bubble[data-visible="true"] {
+  opacity: 1;
+  transform: none;
+}
+
+.stage-bubble::after {
+  content: "";
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  width: 9px;
+  height: 9px;
+  margin-left: -5px;
+  background: inherit;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  transform: rotate(45deg);
+}
+
 /* The stage keeps the figure clear of the panel; the chat island writes --panel-lift. */
 .stage-figure {
   --stage-filter: saturate(1);
