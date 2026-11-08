@@ -1,14 +1,17 @@
 import { cn } from 'cn';
 import { MenuIcon, MessageCircleIcon, PanelLeftIcon, PlusIcon, SettingsIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import SessionList from '@/components/SessionList';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import type { ChatController } from '@/lib/chat/controller';
 import { describeMode, loadSettings, readApiKey } from '@/lib/chat/settings';
 import type { ChatMode } from '@/lib/chat/types';
+import { useChatController } from '@/lib/chat/use-chat-controller';
 
 const NAV = [
   { id: 'chat', href: '/', label: '对话', icon: MessageCircleIcon },
@@ -38,12 +41,14 @@ function SidebarBody({
   active,
   license,
   mode,
+  chat,
   onCollapse,
   onNewChat,
 }: {
   active: 'chat' | 'settings';
   license: boolean;
   mode: ChatMode;
+  chat: ChatController | null;
   onCollapse?: () => void;
   onNewChat?: () => void;
 }) {
@@ -70,7 +75,17 @@ function SidebarBody({
       </div>
 
       <Button asChild className="w-full justify-start">
-        <a href="/?new=1" data-new-chat onClick={onNewChat}>
+        <a
+          href="/?new=1"
+          data-new-chat
+          onClick={(event) => {
+            // On the chat page the controller is right here; the link is the no-JS path.
+            if (!chat) return;
+            event.preventDefault();
+            chat.newSession();
+            onNewChat?.();
+          }}
+        >
           <PlusIcon data-icon="inline-start" />
           新对话
         </a>
@@ -95,10 +110,14 @@ function SidebarBody({
       <Separator />
 
       <div className="px-1 text-xs font-medium text-muted-foreground">本机对话</div>
-      <div className="rounded-md border bg-background/40 p-2.5">
-        <div className="text-xs text-foreground/90">历史保存在这台设备</div>
-        <div className="mt-1 text-xs text-muted-foreground">最多 100 条 · 自动恢复</div>
-      </div>
+      {active === 'chat' ? (
+        <SessionList controller={chat} onPick={onNewChat} />
+      ) : (
+        <div className="rounded-md border bg-background/40 p-2.5">
+          <div className="text-xs text-foreground/90">历史保存在这台设备</div>
+          <div className="mt-1 text-xs text-muted-foreground">最多 20 段 · 自动恢复</div>
+        </div>
+      )}
 
       <div className="mt-auto flex flex-col gap-3">
         <Badge variant="secondary" className="w-fit gap-1.5" data-side-mode data-mode={mode}>
@@ -136,6 +155,7 @@ export default function Sidebar({ active = 'chat', license = true }: SidebarProp
   const [mode, setMode] = useState<ChatMode>('demo');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const chat = useChatController(active === 'chat');
 
   useEffect(() => {
     setMode(readMode());
@@ -179,6 +199,7 @@ export default function Sidebar({ active = 'chat', license = true }: SidebarProp
             active={active}
             license={license}
             mode={mode}
+            chat={chat}
             onCollapse={() => setCollapsed(true)}
           />
         </aside>
@@ -191,6 +212,7 @@ export default function Sidebar({ active = 'chat', license = true }: SidebarProp
             active={active}
             license={license}
             mode={mode}
+            chat={chat}
             onNewChat={() => setDrawerOpen(false)}
           />
         </SheetContent>
