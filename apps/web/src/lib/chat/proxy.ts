@@ -13,6 +13,7 @@ import {
   REASONING_EFFORTS,
   TEMPERATURE,
 } from './llm';
+import { PROTOCOLS, type Protocol } from './settings';
 
 export const CONNECT_TIMEOUT_MS = 8000;
 export const IDLE_TIMEOUT_MS = 30 * 1000;
@@ -28,6 +29,8 @@ interface ChatBody {
   endpoint: string;
   apiKey: string;
   model: string;
+  /** What the endpoint speaks. Only the OpenAI shape is forwarded today. */
+  protocol: Protocol;
   messages: ModelMessage[];
   maxOutputTokens: number;
   /** Null sends no field at all; a non-reasoning model rejects an unknown one. */
@@ -220,6 +223,16 @@ function readBody(raw: unknown): ChatBody | string {
   if (typeof record.model !== 'string' || record.model.length === 0) {
     return 'model is required';
   }
+  let protocol: Protocol = 'openai';
+  if (record.protocol !== undefined) {
+    if (
+      typeof record.protocol !== 'string' ||
+      !(PROTOCOLS as readonly string[]).includes(record.protocol)
+    ) {
+      return 'protocol is not supported';
+    }
+    protocol = record.protocol as Protocol;
+  }
   let maxOutputTokens = OUTPUT_DEFAULT;
   if (record.maxOutputTokens !== undefined) {
     if (typeof record.maxOutputTokens !== 'number' || !Number.isFinite(record.maxOutputTokens)) {
@@ -244,6 +257,7 @@ function readBody(raw: unknown): ChatBody | string {
     endpoint,
     apiKey: record.apiKey,
     model: record.model,
+    protocol,
     messages,
     maxOutputTokens,
     reasoningEffort,

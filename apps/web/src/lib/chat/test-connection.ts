@@ -1,4 +1,4 @@
-import type { Settings } from './settings';
+import type { Protocol, Provider } from './settings';
 import type { ModelMessage } from './types';
 
 /** What a connection test can end in, in the words the settings panel shows. */
@@ -7,6 +7,15 @@ export type ProbeOutcome = 'incomplete' | 'ok' | 'unreachable' | 'unauthorized';
 export interface ProbeResult {
   outcome: ProbeOutcome;
   reason: string;
+}
+
+/** The unsaved values one test would send, so a dialog can test before saving. */
+export interface ProbeTarget {
+  endpoint: string;
+  model: string;
+  apiKey: string;
+  direct: boolean;
+  protocol: Protocol;
 }
 
 /** One short turn: the point is reachability, not content. */
@@ -20,11 +29,21 @@ function trimSlash(value: string): string {
   return value.replace(/\/+$/u, '');
 }
 
+export function probeTarget(provider: Provider, model: string, apiKey: string): ProbeTarget {
+  return {
+    endpoint: provider.baseUrl,
+    model,
+    apiKey,
+    direct: provider.direct,
+    protocol: provider.protocol,
+  };
+}
+
 /** Why the test button cannot run yet, or null when it can. */
-export function probeReadiness(settings: Settings, apiKey: string): string | null {
-  if (!settings.endpoint.trim()) return '先填端点';
-  if (!settings.model.trim()) return '先填模型名';
-  if (!apiKey.trim() && !settings.direct) return '经代理需要 API key，或者打开直连';
+export function probeReadiness(target: ProbeTarget): string | null {
+  if (!target.endpoint.trim()) return '先填 base URL';
+  if (!target.model.trim()) return '先填模型名';
+  if (!target.apiKey.trim() && !target.direct) return '经代理需要 API key，或者打开直连';
   return null;
 }
 
@@ -47,21 +66,17 @@ function fromStatus(status: number): ProbeResult {
   };
 }
 
-async function probeDirect(
-  settings: Settings,
-  apiKey: string,
-  fetcher: Fetcher,
-): Promise<ProbeResult> {
+async function probeDirect(target: ProbeTarget, fetcher: Fetcher): Promise<ProbeResult> {
   let response: Response;
   try {
-    response = await fetcher(`${trimSlash(settings.endpoint.trim())}/chat/completions`, {
+    response = await fetcher(`${trimSlash(target.endpoint.trim())}/chat/completions`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}),
+        ...(target.apiKey ? { authorization: `Bearer ${target.apiKey}` } : {}),
       },
       body: JSON.stringify({
-        model: settings.model.trim(),
+        model: target.model.trim(),
         messages: PING,
         max_tokens: PROBE_MAX_TOKENS,
         temperature: 0,
@@ -78,20 +93,17 @@ async function probeDirect(
   return response.ok ? { outcome: 'ok', reason: '端点有响应' } : fromStatus(response.status);
 }
 
-async function probeProxy(
-  settings: Settings,
-  apiKey: string,
-  fetcher: Fetcher,
-): Promise<ProbeResult> {
+async function probeProxy(target: ProbeTarget, fetcher: Fetcher): Promise<ProbeResult> {
   let response: Response;
   try {
     response = await fetcher('/api/chat', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        endpoint: settings.endpoint.trim(),
-        apiKey,
-        model: settings.model.trim(),
+        endpoint: target.endpoint.trim(),
+        apiKey: target.apiKey,
+        model: target.model.trim(),
+        protocol: target.protocol,
         messages: PING,
         maxOutputTokens: PROBE_MAX_TOKENS,
         probe: true,
@@ -143,13 +155,13 @@ async function probeProxy(
  * Nothing is stored, nothing is retried, and the key stays in this call.
  */
 export async function runProbe(
-  settings: Settings,
-  apiKey: string,
+  target: ProbeTarget,
   fetcher: Fetcher = fetch,
 ): Promise<ProbeResult> {
-  const blocked = probeReadiness(settings, apiKey);
+  const blocked = probeReadiness(target);
   if (blocked) return { outcome: 'incomplete', reason: blocked };
-  return settings.direct
-    ? probeDirect(settings, apiKey.trim(), fetcher)
-    : probeProxy(settings, apiKey.trim(), fetcher);
+  const key = target.apiKey.trim();
+  return target.direct
+    ? probeDirect({ ...target, apiKey: key }, fetcher)
+    : probeProxy({ ...target, apiKey: key }, fetcher);
 }

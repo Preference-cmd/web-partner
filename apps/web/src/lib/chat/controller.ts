@@ -19,7 +19,14 @@ import {
   TITLE_MAX,
   titleFromText,
 } from './session-storage';
-import { DEFAULT_SETTINGS, loadSettings, readApiKey, resolveMode, type Settings } from './settings';
+import {
+  activeTarget,
+  currentApiKey,
+  DEFAULT_SETTINGS,
+  loadSettings,
+  resolveMode,
+  type Settings,
+} from './settings';
 import { type ChatRequest, type StreamTransport, streamChat } from './transport';
 import type {
   ChatState,
@@ -464,14 +471,16 @@ export function createChatController(deps: ChatControllerDeps = {}): ChatControl
     signal: AbortSignal,
   ): Promise<void> {
     const history = store.getState().messages.filter((message) => message.id !== replyId);
+    const target = activeTarget(config.settings);
     const request: ChatRequest = {
-      endpoint: config.settings.endpoint,
+      endpoint: target?.provider.baseUrl ?? '',
       apiKey: config.apiKey,
-      model: config.settings.model,
+      model: target?.model.model ?? '',
+      protocol: target?.provider.protocol ?? 'openai',
       messages: buildModelMessages(history, config.settings.contextTokens),
       maxOutputTokens: config.settings.maxOutputTokens,
       reasoningEffort: config.settings.effort,
-      direct: config.settings.direct,
+      direct: target?.provider.direct ?? false,
     };
     const parser = createStreamParser({
       onEmotion: (emotion) => {
@@ -741,9 +750,10 @@ export function getChatController(): ChatController {
         if (typeof window === 'undefined') {
           return { settings: { ...DEFAULT_SETTINGS }, apiKey: '' };
         }
+        const settings = loadSettings(window.localStorage);
         return {
-          settings: loadSettings(window.localStorage),
-          apiKey: readApiKey(window.sessionStorage, window.localStorage),
+          settings,
+          apiKey: currentApiKey(settings, window.sessionStorage, window.localStorage),
         };
       },
       transport: streamChat,

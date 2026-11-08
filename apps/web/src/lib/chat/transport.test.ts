@@ -21,6 +21,7 @@ const request: ChatRequest = {
   endpoint: 'https://api.example.com/v1',
   apiKey: 'sk-test-abc',
   model: 'demo-model',
+  protocol: 'openai',
   messages: [{ role: 'user', content: 'hi' }],
   maxOutputTokens: 2048,
   reasoningEffort: 'off',
@@ -51,6 +52,7 @@ describe('chat transport', () => {
       endpoint: 'https://api.example.com/v1',
       apiKey: 'sk-test-abc',
       model: 'demo-model',
+      protocol: 'openai',
       messages: [{ role: 'user', content: 'hi' }],
       maxOutputTokens: 2048,
     });

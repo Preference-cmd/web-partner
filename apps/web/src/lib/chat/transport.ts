@@ -1,5 +1,5 @@
 import { TEMPERATURE } from './llm';
-import type { Effort } from './settings';
+import type { Effort, Protocol } from './settings';
 import { readSse, readText } from './sse';
 import type { ModelMessage } from './types';
 
@@ -7,6 +7,8 @@ export interface ChatRequest {
   endpoint: string;
   apiKey: string;
   model: string;
+  /** The proxy only forwards protocols it speaks; direct mode is OpenAI-shaped. */
+  protocol: Protocol;
   messages: ModelMessage[];
   maxOutputTokens: number;
   /** Thinking intensity for a reasoning model; 'off' leaves the field out. */
@@ -68,6 +70,7 @@ export const streamChat: StreamTransport = async (request, signal, onDelta) => {
       endpoint: request.endpoint,
       apiKey: request.apiKey,
       model: request.model,
+      protocol: request.protocol,
       messages: request.messages,
       maxOutputTokens: request.maxOutputTokens,
       ...(request.reasoningEffort === 'off' ? {} : { reasoningEffort: request.reasoningEffort }),

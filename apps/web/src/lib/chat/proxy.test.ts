@@ -123,6 +123,27 @@ describe('chat proxy', () => {
     expect((await handleChat(makeRequest({ ...baseBody, reasoningEffort: 3 }))).status).toBe(400);
   });
 
+  it('forwards only the protocols it speaks', async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(sseChunks(), {
+          status: 200,
+          headers: { 'content-type': 'text/event-stream' },
+        }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await (await handleChat(makeRequest({ ...baseBody, protocol: 'openai' }))).text();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect((await handleChat(makeRequest({ ...baseBody, protocol: 'anthropic' }))).status).toBe(
+      400,
+    );
+    expect((await handleChat(makeRequest({ ...baseBody, protocol: 3 }))).status).toBe(400);
+    expect(
+      (await (await handleChat(makeRequest({ ...baseBody, protocol: 'anthropic' }))).text()).length,
+    ).toBeGreaterThan(0);
+  });
+
   it('answers a probe with the upstream status, not a stream', async () => {
     const fetchMock = vi.fn(async () => new Response('{"error":"nope"}', { status: 401 }));
     vi.stubGlobal('fetch', fetchMock);

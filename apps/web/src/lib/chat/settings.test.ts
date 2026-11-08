@@ -11,22 +11,37 @@ import {
   ALPHA_DEFAULT,
   ALPHA_MAX,
   ALPHA_MIN,
+  activeProvider,
+  activeTarget,
   applyAppearance,
-  clearApiKey,
+  clampEffort,
+  clearAllProviderKeys,
+  clearProviderKey,
   clearSettings,
+  currentApiKey,
   DEFAULT_SETTINGS,
   describeMode,
+  effortOptions,
   endpointHint,
+  LEGACY_PROVIDER_ID,
   loadSettings,
-  MODEL_PRESET_LIMIT,
-  readApiKey,
+  modelLabel,
+  normalizeActive,
+  PROVIDER_LIMIT,
+  PROVIDER_MODEL_LIMIT,
+  type Provider,
+  readProviderKey,
   resolveMode,
-  SECRET_KEY,
+  SECRETS_KEY,
   SETTINGS_KEY,
+  type Settings,
   type StringStorage,
-  saveApiKey,
+  saveProviderKey,
   saveSettings,
 } from './settings';
+
+/** The single key file that predates providers. */
+const LEGACY_SECRET_KEY = 'partner.secret.v1';
 
 function memoryStorage(seed: Record<string, string> = {}): StringStorage {
   const map = new Map(Object.entries(seed));
@@ -41,6 +56,29 @@ function memoryStorage(seed: Record<string, string> = {}): StringStorage {
   };
 }
 
+const provider: Provider = {
+  id: 'p-one',
+  name: '示例供应商',
+  protocol: 'openai',
+  baseUrl: 'https://api.example.com/v1',
+  direct: false,
+  models: [
+    { id: 'm-one', model: 'demo-model', label: '小模型' },
+    { id: 'm-two', model: 'gpt-4o' },
+  ],
+  efforts: ['low', 'high'],
+};
+
+function withProvider(patch: Partial<Settings> = {}): Settings {
+  return {
+    ...DEFAULT_SETTINGS,
+    providers: [{ ...provider, models: [...provider.models], efforts: [...provider.efforts] }],
+    activeProviderId: 'p-one',
+    activeModel: 'demo-model',
+    ...patch,
+  };
+}
+
 describe('settings', () => {
   it('falls back to defaults without storage', () => {
     expect(loadSettings(undefined)).toEqual(DEFAULT_SETTINGS);
@@ -52,13 +90,7 @@ describe('settings', () => {
 
   it('round-trips the saved settings', () => {
     const storage = memoryStorage();
-    const settings = {
-      ...DEFAULT_SETTINGS,
-      endpoint: 'https://api.example.com/v1',
-      model: 'demo-model',
-      mode: 'live' as const,
-      direct: true,
-    };
+    const settings = withProvider({ mode: 'live', effort: 'high' });
     saveSettings(storage, settings);
     expect(loadSettings(storage)).toEqual(settings);
   });
@@ -128,60 +160,288 @@ describe('settings', () => {
     expect(loadSettings(storage)).toEqual(DEFAULT_SETTINGS);
   });
 
-  it('reads the key from the session first and the local copy second', () => {
-    const session = memoryStorage({ [SECRET_KEY]: 'sk-session' });
-    const local = memoryStorage({ [SECRET_KEY]: 'sk-local' });
-    expect(readApiKey(session, local)).toBe('sk-session');
-    expect(readApiKey(memoryStorage(), local)).toBe('sk-local');
-    expect(readApiKey(memoryStorage(), memoryStorage())).toBe('');
+  it('turns a single-endpoint file into one provider and keeps its request', () => {
+    const loaded = loadSettings(
+      memoryStorage({
+        [SETTINGS_KEY]: JSON.stringify({
+          endpoint: 'https://api.example.com/v1',
+          model: 'demo-model',
+          modelPresets: [{ id: 'a', label: 'Fast', model: 'gpt-4o' }],
+          effort: 'high',
+          direct: true,
+          mode: 'live',
+          maxOutputTokens: 2048,
+        }),
+      }),
+    );
+    expect(loaded.providers).toEqual([
+      {
+        id: LEGACY_PROVIDER_ID,
+        name: 'api.example.com',
+        protocol: 'openai',
+        baseUrl: 'https://api.example.com/v1',
+        direct: true,
+        models: [
+          { id: 'm-demo-mod', model: 'demo-model' },
+          { id: 'a', label: 'Fast', model: 'gpt-4o' },
+        ],
+        efforts: ['high'],
+      },
+    ]);
+    expect(loaded.activeProviderId).toBe(LEGACY_PROVIDER_ID);
+    expect(loaded.activeModel).toBe('demo-model');
+    expect(loaded.mode).toBe('live');
+    expect(loaded.maxOutputTokens).toBe(2048);
   });
 
-  it('writes the key to the session and drops it when blank', () => {
+  it('does not invent a provider for an empty file', () => {
+    expect(loadSettings(memoryStorage({ [SETTINGS_KEY]: '{}' })).providers).toEqual([]);
+  });
+
+  it('caps the stored providers and drops duplicates', () => {
+    const many = Array.from({ length: PROVIDER_LIMIT + 4 }, (_, index) => ({
+      ...provider,
+      id: 'p-' + index,
+      name: `P${index}`,
+    }));
+    const loaded = loadSettings(
+      memoryStorage({
+        [SETTINGS_KEY]: JSON.stringify({
+          ...DEFAULT_SETTINGS,
+          providers: [...many, { ...provider, id: 'p-0' }],
+        }),
+      }),
+    );
+    expect(loaded.providers).toHaveLength(PROVIDER_LIMIT);
+    expect(new Set(loaded.providers.map((entry) => entry.id)).size).toBe(PROVIDER_LIMIT);
+  });
+
+  it('keeps models in order and drops empty or duplicate ones', () => {
+    const loaded = loadSettings(
+      memoryStorage({
+        [SETTINGS_KEY]: JSON.stringify({
+          ...DEFAULT_SETTINGS,
+          providers: [
+            {
+              ...provider,
+              models: [
+                { id: 'a', model: 'gpt-4o-mini' },
+                { id: 'b', model: '  ' },
+                { id: 'c', model: 'gpt-4o-mini' },
+                'nope',
+                { id: 'd', model: 'gpt-4o', label: '  ' },
+              ],
+            },
+          ],
+        }),
+      }),
+    );
+    expect(loaded.providers[0]?.models).toEqual([
+      { id: 'a', model: 'gpt-4o-mini' },
+      { id: 'd', model: 'gpt-4o' },
+    ]);
+    expect(loaded.activeModel).toBe('gpt-4o-mini');
+  });
+
+  it('caps the models of one provider', () => {
+    const many = Array.from({ length: PROVIDER_MODEL_LIMIT + 3 }, (_, index) => ({
+      id: 'm' + index,
+      model: 'model-' + index,
+    }));
+    const loaded = loadSettings(
+      memoryStorage({
+        [SETTINGS_KEY]: JSON.stringify({
+          ...DEFAULT_SETTINGS,
+          providers: [{ ...provider, models: many }],
+        }),
+      }),
+    );
+    expect(loaded.providers[0]?.models).toHaveLength(PROVIDER_MODEL_LIMIT);
+  });
+
+  it('falls back to the first provider and model when the stored pair is gone', () => {
+    const loaded = loadSettings(
+      memoryStorage({
+        [SETTINGS_KEY]: JSON.stringify({
+          ...DEFAULT_SETTINGS,
+          providers: [provider],
+          activeProviderId: 'p-gone',
+          activeModel: 'gone-model',
+        }),
+      }),
+    );
+    expect(loaded.activeProviderId).toBe('p-one');
+    expect(loaded.activeModel).toBe('demo-model');
+  });
+
+  it('falls back to OpenAI and the host for an unreadable provider', () => {
+    const loaded = loadSettings(
+      memoryStorage({
+        [SETTINGS_KEY]: JSON.stringify({
+          ...DEFAULT_SETTINGS,
+          providers: [
+            {
+              baseUrl: 'https://gw.example.com/v1',
+              protocol: 'gemini',
+              models: [],
+              efforts: ['turbo', 'medium'],
+            },
+          ],
+        }),
+      }),
+    );
+    const first = loaded.providers[0];
+    expect(first?.protocol).toBe('openai');
+    expect(first?.name).toBe('gw.example.com');
+    expect(first?.efforts).toEqual(['medium']);
+    expect(first?.direct).toBe(false);
+  });
+
+  it('converges the chosen effort to what the provider offers', () => {
+    const loaded = loadSettings(
+      memoryStorage({
+        [SETTINGS_KEY]: JSON.stringify({
+          ...DEFAULT_SETTINGS,
+          providers: [provider],
+          effort: 'medium',
+        }),
+      }),
+    );
+    expect(loaded.effort).toBe('off');
+  });
+
+  it('reads the reasoning levels one provider offers', () => {
+    expect(effortOptions(undefined)).toEqual(['off']);
+    expect(effortOptions({ ...provider, efforts: [] })).toEqual(['off']);
+    expect(effortOptions({ ...provider, efforts: ['high', 'low'] })).toEqual([
+      'off',
+      'low',
+      'high',
+    ]);
+    expect(clampEffort('high', { ...provider, efforts: ['low'] })).toBe('off');
+    expect(clampEffort('low', { ...provider, efforts: ['low'] })).toBe('low');
+  });
+
+  it('resolves an active provider and model', () => {
+    const settings = withProvider({ effort: 'low' });
+    expect(activeProvider(settings)?.id).toBe('p-one');
+    expect(activeTarget(settings)?.model.model).toBe('demo-model');
+    expect(modelLabel({ id: 'x', model: 'gpt-4o' })).toBe('gpt-4o');
+    expect(modelLabel({ id: 'x', model: 'gpt-4o', label: '快' })).toBe('快');
+    expect(activeTarget(DEFAULT_SETTINGS)).toBeNull();
+  });
+
+  it('lands on an existing provider and model after an edit', () => {
+    const withoutActive = normalizeActive({
+      ...withProvider(),
+      activeProviderId: '',
+      activeModel: '',
+    });
+    expect(withoutActive.activeProviderId).toBe('p-one');
+    expect(withoutActive.activeModel).toBe('demo-model');
+
+    const noModels = normalizeActive({
+      ...DEFAULT_SETTINGS,
+      providers: [{ ...provider, models: [] }],
+    });
+    expect(noModels.activeModel).toBe('');
+    expect(noModels.effort).toBe('off');
+
+    expect(normalizeActive(DEFAULT_SETTINGS)).toMatchObject({
+      activeProviderId: '',
+      activeModel: '',
+      effort: 'off',
+    });
+  });
+
+  it('keeps one key per provider and never leaks it sideways', () => {
     const session = memoryStorage();
-    saveApiKey(session, '  sk-new  ');
-    expect(readApiKey(session, memoryStorage())).toBe('sk-new');
-    saveApiKey(session, '   ');
-    expect(readApiKey(session, memoryStorage())).toBe('');
+    saveProviderKey(session, 'p-one', '  sk-one  ');
+    saveProviderKey(session, 'p-two', 'sk-two');
+    expect(readProviderKey(session, memoryStorage(), 'p-one')).toBe('sk-one');
+    expect(readProviderKey(session, memoryStorage(), 'p-two')).toBe('sk-two');
+    expect(readProviderKey(session, memoryStorage(), 'p-three')).toBe('');
+    expect(readProviderKey(session, memoryStorage(), '')).toBe('');
   });
 
-  it('clears both copies of the key', () => {
-    const session = memoryStorage({ [SECRET_KEY]: 'sk-session' });
-    const local = memoryStorage({ [SECRET_KEY]: 'sk-local' });
-    clearApiKey(session, local);
-    expect(readApiKey(session, local)).toBe('');
+  it('prefers the session copy over a remembered one', () => {
+    const session = memoryStorage({ [SECRETS_KEY]: JSON.stringify({ 'p-one': 'sk-session' }) });
+    const local = memoryStorage({ [SECRETS_KEY]: JSON.stringify({ 'p-one': 'sk-local' }) });
+    expect(readProviderKey(session, local, 'p-one')).toBe('sk-session');
+    expect(readProviderKey(memoryStorage(), local, 'p-one')).toBe('sk-local');
+    expect(readProviderKey(memoryStorage(), memoryStorage(), 'p-one')).toBe('');
+  });
+
+  it('answers the migrated provider from the single key file', () => {
+    const session = memoryStorage({ [LEGACY_SECRET_KEY]: 'sk-legacy' });
+    expect(readProviderKey(session, memoryStorage(), LEGACY_PROVIDER_ID)).toBe('sk-legacy');
+    expect(readProviderKey(session, memoryStorage(), 'p-other')).toBe('');
+  });
+
+  it('replaces the single key file once the migrated provider saves its own', () => {
+    const session = memoryStorage({ [LEGACY_SECRET_KEY]: 'sk-legacy' });
+    saveProviderKey(session, LEGACY_PROVIDER_ID, 'sk-new');
+    expect(readProviderKey(session, memoryStorage(), LEGACY_PROVIDER_ID)).toBe('sk-new');
+    expect(session.getItem(LEGACY_SECRET_KEY)).toBeNull();
+  });
+
+  it('drops a key when the field is cleared and clears them all on request', () => {
+    const session = memoryStorage();
+    saveProviderKey(session, 'p-one', 'sk-one');
+    saveProviderKey(session, 'p-one', '   ');
+    expect(readProviderKey(session, memoryStorage(), 'p-one')).toBe('');
+
+    saveProviderKey(session, 'p-one', 'sk-one');
+    saveProviderKey(session, 'p-two', 'sk-two');
+    const local = memoryStorage({ [SECRETS_KEY]: JSON.stringify({ 'p-one': 'sk-local' }) });
+    clearProviderKey(session, local, 'p-one');
+    expect(readProviderKey(session, local, 'p-one')).toBe('');
+    expect(readProviderKey(session, local, 'p-two')).toBe('sk-two');
+
+    clearAllProviderKeys(session, local);
+    expect(readProviderKey(session, local, 'p-two')).toBe('');
+    expect(local.getItem(SECRETS_KEY)).toBeNull();
+  });
+
+  it('finds the key of the active provider', () => {
+    const session = memoryStorage();
+    saveProviderKey(session, 'p-one', 'sk-one');
+    saveProviderKey(session, 'p-two', 'sk-two');
+    const settings = withProvider();
+    expect(currentApiKey(settings, session, memoryStorage())).toBe('sk-one');
+    expect(
+      currentApiKey({ ...settings, activeProviderId: 'p-two' }, session, memoryStorage()),
+    ).toBe('sk-two');
   });
 
   it('resolves the effective mode', () => {
-    const demo = { ...DEFAULT_SETTINGS };
-    const live = {
-      ...DEFAULT_SETTINGS,
-      mode: 'live' as const,
-      endpoint: 'https://api.example.com/v1',
-    };
-    expect(resolveMode(demo, 'sk-test')).toBe('demo');
+    const live = withProvider({ mode: 'live' });
+    expect(resolveMode(DEFAULT_SETTINGS, 'sk-test')).toBe('demo');
     expect(resolveMode({ ...live, forceDemo: true }, 'sk-test')).toBe('demo');
     expect(resolveMode(live, '')).toBe('demo');
     expect(resolveMode(live, 'sk-test')).toBe('live');
-    expect(resolveMode({ ...live, direct: true }, '')).toBe('live');
+    expect(resolveMode({ ...live, providers: [{ ...provider, direct: true }] }, '')).toBe('live');
   });
 
   it('explains why the mode is not live', () => {
-    const live = {
-      ...DEFAULT_SETTINGS,
-      mode: 'live' as const,
-      endpoint: 'https://api.example.com/v1',
-    };
+    const live = withProvider({ mode: 'live' });
     expect(describeMode(live, 'sk-test')).toEqual({
       mode: 'live',
-      reason: '端点、key、模型已就绪',
+      reason: '供应商、key、模型已就绪',
     });
-    expect(describeMode({ ...live, direct: true }, '')).toEqual({
+    expect(describeMode({ ...live, providers: [{ ...provider, direct: true }] }, '')).toEqual({
       mode: 'live',
       reason: '直连端点，不需要 key',
     });
     expect(describeMode({ ...live, forceDemo: true }, 'sk-test').reason).toBe('已强制演示');
     expect(describeMode(DEFAULT_SETTINGS, 'sk-test').reason).toBe('回复来自本地模板');
-    expect(describeMode({ ...live, endpoint: '  ' }, 'sk-test').reason).toBe('还没填端点');
+    expect(describeMode({ ...live, providers: [] }, 'sk-test').reason).toBe('还没有可用的供应商');
+    expect(
+      describeMode({ ...live, providers: [{ ...provider, baseUrl: '  ' }] }, 'sk-test').reason,
+    ).toBe('供应商还没填 base_url');
+    expect(
+      describeMode({ ...live, providers: [{ ...provider, models: [] }] }, 'sk-test').reason,
+    ).toBe('供应商还没加模型');
     expect(describeMode(live, '').reason).toBe('还没填 API key');
   });
 
@@ -209,49 +469,14 @@ describe('settings', () => {
     expect(root.dataset.motion).toBe('reduced');
   });
 
-  it('keeps model presets in order and drops empty or duplicate ones', () => {
-    const loaded = loadSettings(
-      memoryStorage({
-        [SETTINGS_KEY]: JSON.stringify({
-          ...DEFAULT_SETTINGS,
-          modelPresets: [
-            { id: 'a', label: 'Fast', model: 'gpt-4o-mini' },
-            { id: 'b', label: '', model: 'gpt-4o' },
-            { id: 'c', label: 'Empty', model: '   ' },
-            { id: 'a', label: 'Duplicate id', model: 'x' },
-            'not a preset',
-          ],
-        }),
-      }),
-    );
-    expect(loaded.modelPresets).toEqual([
-      { id: 'a', label: 'Fast', model: 'gpt-4o-mini' },
-      { id: 'b', label: 'gpt-4o', model: 'gpt-4o' },
-    ]);
-  });
-
-  it('caps the stored presets at the limit', () => {
-    const many = Array.from({ length: 12 }, (_, index) => ({
-      id: 'p' + index,
-      label: 'Model ' + index,
-      model: 'm' + index,
-    }));
-    const loaded = loadSettings(
-      memoryStorage({
-        [SETTINGS_KEY]: JSON.stringify({ ...DEFAULT_SETTINGS, modelPresets: many }),
-      }),
-    );
-    expect(loaded.modelPresets).toHaveLength(MODEL_PRESET_LIMIT);
-  });
-
   it('reads a reasoning effort and ignores an unknown one', () => {
     const read = (effort: unknown) =>
-      loadSettings(
-        memoryStorage({ [SETTINGS_KEY]: JSON.stringify({ ...DEFAULT_SETTINGS, effort }) }),
-      ).effort;
+      loadSettings(memoryStorage({ [SETTINGS_KEY]: JSON.stringify({ ...withProvider(), effort }) }))
+        .effort;
     expect(read('off')).toBe('off');
-    expect(read('minimal')).toBe('minimal');
+    expect(read('low')).toBe('low');
     expect(read('high')).toBe('high');
+    expect(read('medium')).toBe('off');
     expect(read('standard')).toBe('off');
     expect(read('turbo')).toBe('off');
     expect(read(42)).toBe('off');
@@ -261,7 +486,12 @@ describe('settings', () => {
     const legacy = (effort: unknown, extra: Record<string, unknown> = {}) =>
       loadSettings(
         memoryStorage({
-          [SETTINGS_KEY]: JSON.stringify({ ...DEFAULT_SETTINGS, effort, ...extra }),
+          [SETTINGS_KEY]: JSON.stringify({
+            endpoint: 'https://api.example.com/v1',
+            model: 'demo-model',
+            effort,
+            ...extra,
+          }),
         }),
       );
     expect(legacy('light')).toMatchObject({ effort: 'off', maxOutputTokens: 512 });

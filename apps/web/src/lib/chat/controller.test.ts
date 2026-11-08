@@ -32,10 +32,27 @@ function memoryStorage(): StringStorage {
 
 const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
+const liveProvider = {
+  id: 'p-test',
+  name: '测试供应商',
+  protocol: 'openai' as const,
+  baseUrl: 'https://api.example.com/v1',
+  direct: false,
+  models: [{ id: 'm-test', model: 'demo-model' }],
+  efforts: ['minimal', 'low', 'medium', 'high'] as const,
+};
+
 const liveSettings: Partial<Settings> = {
   mode: 'live',
-  endpoint: 'https://api.example.com/v1',
-  model: 'demo-model',
+  providers: [
+    {
+      ...liveProvider,
+      models: [...liveProvider.models],
+      efforts: [...liveProvider.efforts],
+    },
+  ],
+  activeProviderId: 'p-test',
+  activeModel: 'demo-model',
 };
 
 interface HarnessOptions {

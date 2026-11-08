@@ -4,7 +4,8 @@ export const OPEN_SETTINGS_EVENT = 'partner:open-settings';
 /** Settings were written; the composer and other readers should re-read them. */
 export const SETTINGS_CHANGED_EVENT = 'partner:settings-changed';
 
-export function requestSettings(): void {
+export function requestSettings(section?: string): void {
+  if (section) window.history.replaceState(window.history.state, '', `#${section}`);
   window.dispatchEvent(new Event(OPEN_SETTINGS_EVENT));
 }
 
