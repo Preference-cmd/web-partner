@@ -73,7 +73,8 @@ CI repeats the full gate and runs commitlint over the pushed range.
 `Deploy` (`.github/workflows/deploy.yml`) is manual and never runs on a
 push: it checks the app, builds it and uploads `apps/web` as the Worker
 `partner-web`. It needs the repository secrets `CLOUDFLARE_API_TOKEN` and
-`CLOUDFLARE_ACCOUNT_ID`.
+`CLOUDFLARE_ACCOUNT_ID`, and runs from the repository's **Actions → Deploy →
+Run workflow**.
 
 The Worker holds no runtime secret: the chat proxy forwards the endpoint and
 key the browser sends (bring your own key).
