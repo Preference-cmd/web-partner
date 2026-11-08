@@ -146,11 +146,58 @@ describe('chat proxy', () => {
   it('rejects a body over the size cap', async () => {
     const messages = Array.from({ length: 200 }, () => ({
       role: 'user',
-      content: '啊'.repeat(1000),
+      content: '啊'.repeat(4000),
     }));
     const response = await handleChat(makeRequest({ ...baseBody, messages }));
     expect(response.status).toBe(413);
-    expect(MAX_BODY_BYTES).toBe(512 * 1024);
+    expect(MAX_BODY_BYTES).toBe(2 * 1024 * 1024);
+  });
+
+  it('accepts a message made of text and image parts', async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(sseChunks(), {
+          status: 200,
+          headers: { 'content-type': 'text/event-stream' },
+        }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const image = 'data:image/png;base64,' + 'A'.repeat(4000);
+    const response = await handleChat(
+      makeRequest({
+        ...baseBody,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: '看看' },
+              { type: 'image', image },
+            ],
+          },
+        ],
+      }),
+    );
+    expect(response.status).toBe(200);
+    // The upstream call is lazy; consuming the stream is what starts it.
+    expect(await response.text()).toBe('EMOTION: happy\n你好');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects an unknown content part or an image without a data URL', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const parts = await handleChat(
+      makeRequest({ ...baseBody, messages: [{ role: 'user', content: [{ type: 'file' }] }] }),
+    );
+    const bare = await handleChat(
+      makeRequest({
+        ...baseBody,
+        messages: [{ role: 'user', content: [{ type: 'image', image: 'https://x/y.png' }] }],
+      }),
+    );
+    expect(parts.status).toBe(400);
+    expect(bare.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('accepts a full window of 201 messages', async () => {

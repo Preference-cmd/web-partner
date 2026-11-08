@@ -46,4 +46,62 @@ describe('token window', () => {
     expect(model[0]).toEqual({ role: 'system', content: SYSTEM_PROMPT });
     expect(model.slice(1).map((item) => item.content)).toEqual(['m0', 'm1']);
   });
+
+  it('sends attachments as content parts', () => {
+    const image = 'data:image/png;base64,AAAA';
+    const note = 'data:text/plain;base64,' + Buffer.from('你好', 'utf8').toString('base64');
+    const messages: Message[] = [
+      {
+        id: 'a',
+        role: 'user',
+        content: '看看',
+        at: 1,
+        attachments: [
+          { id: 'a1', name: 'hair.png', mime: 'image/png', size: 70, dataUrl: image },
+          { id: 'a2', name: 'note.txt', mime: 'text/plain', size: 6, dataUrl: note },
+        ],
+      },
+    ];
+    const user = buildModelMessages(messages, 4000)[1];
+    expect(user?.role).toBe('user');
+    expect(user?.content).toEqual([
+      { type: 'text', text: '看看\n\n--- note.txt ---\n你好' },
+      { type: 'image', image },
+    ]);
+  });
+
+  it('drops a stored attachment that no longer has its data URL', () => {
+    const messages: Message[] = [
+      {
+        id: 'a',
+        role: 'user',
+        content: '看看',
+        at: 1,
+        attachments: [{ id: 'a1', name: 'hair.png', mime: 'image/png', size: 70 }],
+      },
+    ];
+    expect(buildModelMessages(messages, 4000)[1]?.content).toBe('看看');
+  });
+
+  it('counts an image against the window budget', () => {
+    const older = message(0, '旧的');
+    const newest: Message = {
+      id: 'new',
+      role: 'user',
+      content: '看',
+      at: 9,
+      attachments: [
+        {
+          id: 'a1',
+          name: 'hair.png',
+          mime: 'image/png',
+          size: 70,
+          dataUrl: 'data:image/png;base64,AAAA',
+        },
+      ],
+    };
+    // One image costs ~1000 tokens, so only the newest fits this window.
+    expect(selectContext([older, newest], 1008).map((item) => item.id)).toEqual(['new']);
+    expect(selectContext([older, newest], 4000).map((item) => item.id)).toEqual([older.id, 'new']);
+  });
 });

@@ -41,6 +41,36 @@ function summary(id: string, updatedAt: number, title = DEFAULT_TITLE) {
 }
 
 describe('session storage', () => {
+  it('keeps attachment metadata but never the data URL', () => {
+    const raw = memoryStorage();
+    const storage = createSessionStorage(raw);
+    storage.writeMessages('s-a', {
+      messages: [
+        {
+          id: 'm0',
+          role: 'user',
+          content: '看看',
+          at: 1,
+          attachments: [
+            {
+              id: 'a1',
+              name: 'hair.png',
+              mime: 'image/png',
+              size: 70,
+              dataUrl: 'data:image/png;base64,AAAA',
+            },
+          ],
+        },
+      ],
+      pendingId: null,
+    });
+    const stored = raw.getItem(sessionKey('s-a')) ?? '';
+    expect(stored).not.toContain('data:image');
+    expect(storage.readMessages('s-a')?.messages[0]?.attachments).toEqual([
+      { id: 'a1', name: 'hair.png', mime: 'image/png', size: 70 },
+    ]);
+  });
+
   it('round-trips an index and a transcript', () => {
     const raw = memoryStorage();
     const storage = createSessionStorage(raw);

@@ -1,5 +1,5 @@
 import { cn } from 'cn';
-import { CheckIcon, ChevronDownIcon, CopyIcon } from 'lucide-react';
+import { CheckIcon, ChevronDownIcon, CopyIcon, FileTextIcon, ImageIcon, XIcon } from 'lucide-react';
 import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
@@ -23,8 +23,10 @@ import {
 } from '@/components/ai-elements/message';
 import {
   PromptInput,
+  PromptInputAttachButton,
   PromptInputBody,
   PromptInputFooter,
+  PromptInputHeader,
   PromptInputSubmit,
   PromptInputTextarea,
   PromptInputTools,
@@ -41,6 +43,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Attachment,
+  AttachmentAction,
+  AttachmentActions,
+  AttachmentContent,
+  AttachmentMedia,
+  AttachmentTitle,
+} from '@/components/ui/attachment';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -58,6 +68,14 @@ import { getChatController } from '@/lib/chat/controller';
 import { QUICK_ACTIONS } from '@/lib/chat/demo';
 import { EMOTION_LABEL } from '@/lib/chat/emotion';
 import {
+  ATTACHMENT_LIMIT,
+  IMAGE_BYTES_MAX,
+  IMAGE_MIME_TYPES,
+  MAX_MESSAGE_PARTS_BYTES,
+  TEXT_FILE_BYTES_MAX,
+  TEXT_FILE_MIME_TYPES,
+} from '@/lib/chat/llm';
+import {
   applyAppearance,
   DEFAULT_SETTINGS,
   EFFORT_LABEL,
@@ -69,7 +87,12 @@ import {
   type Settings,
   saveSettings,
 } from '@/lib/chat/settings';
-import type { Message as ChatMessage, ChatMode, Emotion } from '@/lib/chat/types';
+import type {
+  Message as ChatMessage,
+  ChatMode,
+  Emotion,
+  MessageAttachment,
+} from '@/lib/chat/types';
 import { announceSettings, requestSettings, SETTINGS_CHANGED_EVENT } from '@/lib/ui/open-settings';
 
 /** How much of the figure must stay above the panel before growth stops. */
@@ -82,6 +105,20 @@ const PANEL_GAP = { narrow: 12, wide: 24 };
 
 function maxPanelHeight(): number {
   return Math.min(window.innerHeight * 0.72, 720);
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${Math.round(bytes / 1024)} KB`;
+}
+
+function resolveMime(file: File): string {
+  if (file.type) return file.type;
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  if (ext === 'md') return 'text/markdown';
+  if (ext === 'json') return 'application/json';
+  if (ext === 'csv') return 'text/csv';
+  return 'text/plain';
 }
 
 function clampPanelHeight(value: number): number {
@@ -132,6 +169,25 @@ function MessageRow({ message, index }: { message: ChatMessage; index: number })
         ) : null}
         {message.status === 'aborted' ? <span>· 已中断</span> : null}
       </div>
+      {message.attachments?.length ? (
+        <div className="flex flex-wrap gap-1.5">
+          {message.attachments.map((file) => (
+            <span
+              key={file.id}
+              className="inline-flex max-w-full items-center gap-1 rounded-md border px-2 py-1 text-xs text-muted-foreground"
+              title={file.dataUrl ? file.name : '附件已过期，重新添加'}
+            >
+              {file.mime.startsWith('image/') ? (
+                <ImageIcon className="size-3.5 shrink-0" />
+              ) : (
+                <FileTextIcon className="size-3.5 shrink-0" />
+              )}
+              <span className="truncate">{file.name}</span>
+              {file.dataUrl ? null : <span className="shrink-0">已过期</span>}
+            </span>
+          ))}
+        </div>
+      ) : null}
       {interrupted ? null : (
         <MessageContent className="whitespace-pre-wrap">
           {message.content}
@@ -163,6 +219,9 @@ export default function ChatPanel() {
   const [mode, setMode] = useState<ChatMode>('demo');
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [manualHeight, setManualHeight] = useState<number | null>(null);
+  const [attachments, setAttachments] = useState<MessageAttachment[]>([]);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [narrow, setNarrow] = useState(false);
   const [maxHeight, setMaxHeight] = useState(720);
   const panelRef = useRef<HTMLElement>(null);
@@ -342,6 +401,68 @@ export default function ChatPanel() {
 
   function clear(): void {
     controller.clear();
+  }
+
+  function removeAttachment(id: string): void {
+    setAttachments((current) => current.filter((item) => item.id !== id));
+    setAttachmentError(null);
+  }
+
+  function addFiles(files: FileList | File[]): void {
+    const list = Array.from(files);
+    if (list.length === 0) return;
+    setAttachmentError(null);
+    const room = ATTACHMENT_LIMIT - attachments.length;
+    if (room <= 0) {
+      setAttachmentError(`每条消息最多 ${ATTACHMENT_LIMIT} 个附件`);
+      return;
+    }
+    let total = attachments.reduce((sum, item) => sum + item.size, 0);
+    for (const file of list.slice(0, room)) {
+      const mime = resolveMime(file);
+      const image = (IMAGE_MIME_TYPES as readonly string[]).includes(mime);
+      const text = (TEXT_FILE_MIME_TYPES as readonly string[]).includes(mime);
+      if (!image && !text) {
+        setAttachmentError('只支持图片和纯文本文件（txt / md / json / csv）');
+        continue;
+      }
+      const max = image ? IMAGE_BYTES_MAX : TEXT_FILE_BYTES_MAX;
+      if (file.size > max) {
+        setAttachmentError(
+          `「${file.name}」有 ${formatBytes(file.size)}，${image ? '单张图片' : '单个文本'}最大 ${formatBytes(max)}`,
+        );
+        continue;
+      }
+      if (total + file.size > MAX_MESSAGE_PARTS_BYTES) {
+        setAttachmentError(`附件合计不能超过 ${formatBytes(MAX_MESSAGE_PARTS_BYTES)}`);
+        continue;
+      }
+      total += file.size;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = typeof reader.result === 'string' ? reader.result : '';
+        if (!result) {
+          setAttachmentError(`「${file.name}」读取失败`);
+          return;
+        }
+        setAttachments((current) =>
+          current.length >= ATTACHMENT_LIMIT
+            ? current
+            : [
+                ...current,
+                {
+                  id: `a-${Date.now().toString(36)}-${current.length}`,
+                  name: file.name,
+                  mime,
+                  size: file.size,
+                  dataUrl: result,
+                },
+              ],
+        );
+      };
+      reader.onerror = () => setAttachmentError(`「${file.name}」读取失败`);
+      reader.readAsDataURL(file);
+    }
   }
 
   function persistHeight(value: number | null): void {
@@ -593,9 +714,38 @@ export default function ChatPanel() {
         onSubmit={({ text }) => {
           const value = text.trim();
           setDraft('');
-          if (value) controller.send(value);
+          if (value || attachments.length > 0) controller.send(value, attachments);
+          setAttachments([]);
+          setAttachmentError(null);
         }}
       >
+        {attachments.length > 0 ? (
+          <PromptInputHeader>
+            {attachments.map((file) => (
+              <Attachment key={file.id} size="sm">
+                <AttachmentMedia>
+                  {file.mime.startsWith('image/') ? <ImageIcon /> : <FileTextIcon />}
+                </AttachmentMedia>
+                <AttachmentContent>
+                  <AttachmentTitle>{file.name}</AttachmentTitle>
+                </AttachmentContent>
+                <AttachmentActions>
+                  <AttachmentAction
+                    aria-label={`移除 ${file.name}`}
+                    onClick={() => removeAttachment(file.id)}
+                  >
+                    <XIcon />
+                  </AttachmentAction>
+                </AttachmentActions>
+              </Attachment>
+            ))}
+          </PromptInputHeader>
+        ) : null}
+        {attachmentError ? (
+          <p className="px-3 pt-2 text-xs text-destructive" role="alert">
+            {attachmentError}
+          </p>
+        ) : null}
         <PromptInputBody>
           <PromptInputTextarea
             className="max-h-32 min-h-9 text-sm"
@@ -603,10 +753,30 @@ export default function ChatPanel() {
             aria-label="消息"
             aria-keyshortcuts="Meta+K Control+K /"
             onChange={(event) => setDraft(event.target.value)}
+            onPaste={(event) => {
+              const files = Array.from(event.clipboardData.files);
+              if (files.length === 0) return;
+              event.preventDefault();
+              addFiles(files);
+            }}
           />
         </PromptInputBody>
         <PromptInputFooter>
-          <PromptInputTools />
+          <PromptInputTools>
+            <PromptInputAttachButton onClick={() => fileRef.current?.click()} />
+            <input
+              ref={fileRef}
+              accept="image/png,image/jpeg,image/webp,image/gif,.txt,.md,.json,.csv"
+              className="sr-only"
+              multiple
+              tabIndex={-1}
+              type="file"
+              onChange={(event) => {
+                if (event.target.files) addFiles(event.target.files);
+                event.target.value = '';
+              }}
+            />
+          </PromptInputTools>
           <div className="ml-auto flex min-w-0 items-center gap-1">
             {narrow ? (
               <DropdownMenu>
@@ -676,7 +846,7 @@ export default function ChatPanel() {
             )}
             <PromptInputSubmit
               status={streaming ? 'streaming' : 'ready'}
-              disabled={!streaming && draft.trim().length === 0}
+              disabled={!streaming && draft.trim().length === 0 && attachments.length === 0}
               onClick={(event) => {
                 if (!streaming) return;
                 event.preventDefault();

@@ -25,7 +25,9 @@ import type {
   ChatState,
   Emotion,
   Message,
+  MessageAttachment,
   MessageSource,
+  ModelContentPart,
   ModelMessage,
   SessionSummary,
 } from './types';
@@ -61,7 +63,7 @@ export interface ChatControllerDeps {
 export interface ChatController {
   store: StoreApi<ChatState>;
   hydrate: () => void;
-  send: (text: string) => void;
+  send: (text: string, attachments?: MessageAttachment[]) => void;
   quickReply: (text: string) => void;
   stop: () => void;
   /** Empty the active conversation; the session itself stays in the list. */
@@ -107,6 +109,50 @@ function defaultSleep(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
+/** Images cost a flat estimate; text files cost roughly a token per four bytes. */
+function attachmentTokens(attachments: readonly MessageAttachment[] | undefined): number {
+  if (!attachments?.length) return 0;
+  return attachments.reduce(
+    (total, item) => total + (item.mime.startsWith('image/') ? 1000 : Math.ceil(item.size / 4)),
+    0,
+  );
+}
+
+function decodeTextFile(dataUrl: string): string {
+  const comma = dataUrl.indexOf(',');
+  if (comma < 0) return '';
+  try {
+    const binary = atob(dataUrl.slice(comma + 1));
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+    return new TextDecoder().decode(bytes);
+  } catch {
+    return '';
+  }
+}
+
+/** One stored message as the model sees it: text, or text plus image parts. */
+function toModelMessage(message: Message): ModelMessage {
+  const attachments = message.attachments?.filter((item) => item.dataUrl) ?? [];
+  if (message.role !== 'user' || attachments.length === 0) {
+    return { role: message.role, content: message.content };
+  }
+  let text = message.content;
+  for (const file of attachments) {
+    if (file.mime.startsWith('image/') || !file.dataUrl) continue;
+    const body = decodeTextFile(file.dataUrl);
+    if (body) text += `\n\n--- ${file.name} ---\n${body}`;
+  }
+  const parts: ModelContentPart[] = [];
+  if (text.trim()) parts.push({ type: 'text', text });
+  for (const image of attachments) {
+    if (image.mime.startsWith('image/') && image.dataUrl) {
+      parts.push({ type: 'image', image: image.dataUrl });
+    }
+  }
+  return { role: 'user', content: parts };
+}
+
 /** The latest turns whose estimated tokens fit the window; the newest always goes in. */
 export function selectContext(messages: readonly Message[], budget = CONTEXT_DEFAULT): Message[] {
   const usable = messages
@@ -117,7 +163,10 @@ export function selectContext(messages: readonly Message[], budget = CONTEXT_DEF
   for (let index = usable.length - 1; index >= 0; index -= 1) {
     const message = usable[index];
     if (!message) continue;
-    const cost = estimateTokens(message.content) + MESSAGE_OVERHEAD_TOKENS;
+    const cost =
+      estimateTokens(message.content) +
+      attachmentTokens(message.attachments) +
+      MESSAGE_OVERHEAD_TOKENS;
     if (selected.length > 0 && total + cost > budget) break;
     selected.unshift(message);
     total += cost;
@@ -131,10 +180,7 @@ export function buildModelMessages(
 ): ModelMessage[] {
   return [
     { role: 'system', content: SYSTEM_PROMPT },
-    ...selectContext(history, contextTokens).map((message) => ({
-      role: message.role,
-      content: message.content,
-    })),
+    ...selectContext(history, contextTokens).map(toModelMessage),
   ];
 }
 
@@ -474,15 +520,21 @@ export function createChatController(deps: ChatControllerDeps = {}): ChatControl
     }
   }
 
-  function startTurn(raw: string, local: boolean): void {
+  function startTurn(raw: string, local: boolean, attachments: MessageAttachment[] = []): void {
     const text = raw.trim();
-    if (!text) return;
-    record(local ? 'quick' : 'user', text);
+    if (!text && attachments.length === 0) return;
+    record(local ? 'quick' : 'user', text || `附件 × ${attachments.length}`);
     abortCurrent();
     const config = getConfig();
     const useModel = !local && resolveMode(config.settings, config.apiKey) === 'live';
     const firstUser = !store.getState().messages.some((message) => message.role === 'user');
-    const user: Message = { id: newId(), role: 'user', content: text, at: now() };
+    const user: Message = {
+      id: newId(),
+      role: 'user',
+      content: text,
+      ...(attachments.length > 0 ? { attachments } : {}),
+      at: now(),
+    };
     const reply: Message = {
       id: newId(),
       role: 'assistant',
@@ -496,7 +548,7 @@ export function createChatController(deps: ChatControllerDeps = {}): ChatControl
       status: 'streaming',
       pendingId: reply.id,
     }));
-    if (firstUser) nameActive(titleFromText(text));
+    if (firstUser) nameActive(titleFromText(text || attachments[0]?.name || DEFAULT_TITLE));
     touchActive(now());
     persist(reply.id);
 
@@ -656,7 +708,7 @@ export function createChatController(deps: ChatControllerDeps = {}): ChatControl
   return {
     store,
     hydrate,
-    send: (text) => startTurn(text, false),
+    send: (text, attachments) => startTurn(text, false, attachments),
     quickReply: (text) => startTurn(text, true),
     stop: () => abortCurrent(),
     clear,

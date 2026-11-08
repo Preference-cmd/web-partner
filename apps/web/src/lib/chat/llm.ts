@@ -18,14 +18,28 @@ export const CONTEXT_DEFAULT = 4000;
 
 export const MESSAGE_OVERHEAD_TOKENS = 4;
 
-/** One message stays small enough that a full window still fits the body cap. */
+/** One text part stays small enough that a full window still fits the body cap. */
 export const MAX_MESSAGE_BYTES = 2 * 1024;
+/** Attachments per message, and how large each kind may be. */
+export const ATTACHMENT_LIMIT = 4;
+export const IMAGE_BYTES_MAX = 1024 * 1024;
+export const TEXT_FILE_BYTES_MAX = 64 * 1024;
+/** Everything one message may carry, images included. */
+export const MAX_MESSAGE_PARTS_BYTES = 1536 * 1024;
+export const IMAGE_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'] as const;
+export const TEXT_FILE_MIME_TYPES = [
+  'text/plain',
+  'text/markdown',
+  'application/json',
+  'text/csv',
+] as const;
 export const MAX_ENDPOINT_CHARS = 2048;
 /** Hard cap on messages from one turn, whatever the token window says. */
 export const MAX_CONTEXT_MESSAGES = 200;
 /** The context window plus the system line. */
 export const MAX_MESSAGES = MAX_CONTEXT_MESSAGES + 1;
-export const MAX_BODY_BYTES = 512 * 1024;
+/** Images travel as base64 data URLs, so one turn may carry a couple of megabytes. */
+export const MAX_BODY_BYTES = 2 * 1024 * 1024;
 
 const CJK_CHAR = /[\u3000-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff00-\uffef]/u;
 

@@ -1,5 +1,12 @@
 import { dropKey, keysOf, readKey, type StringStorage, writeKey } from '../storage';
-import type { Emotion, Message, MessageSource, MessageStatus, SessionSummary } from './types';
+import type {
+  Emotion,
+  Message,
+  MessageAttachment,
+  MessageSource,
+  MessageStatus,
+  SessionSummary,
+} from './types';
 
 export const SESSIONS_KEY = 'partner.sessions.v1';
 export const SESSION_PREFIX = 'partner.session.';
@@ -54,6 +61,19 @@ export function titleFromText(text: string, max = AUTO_TITLE_MAX): string {
   return chars.length > max ? `${chars.slice(0, max).join('')}…` : line;
 }
 
+function toAttachment(value: unknown): MessageAttachment | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const record = value as Record<string, unknown>;
+  if (typeof record.id !== 'string' || typeof record.name !== 'string') return null;
+  if (typeof record.mime !== 'string' || typeof record.size !== 'number') return null;
+  return {
+    id: record.id,
+    name: record.name.slice(0, 120),
+    mime: record.mime,
+    size: record.size,
+  };
+}
+
 function toMessage(value: unknown): Message | null {
   if (typeof value !== 'object' || value === null) return null;
   const record = value as Record<string, unknown>;
@@ -66,6 +86,12 @@ function toMessage(value: unknown): Message | null {
     content: record.content,
     at: record.at,
   };
+  if (Array.isArray(record.attachments)) {
+    const attachments = record.attachments
+      .map(toAttachment)
+      .filter((item): item is MessageAttachment => item !== null);
+    if (attachments.length > 0) message.attachments = attachments;
+  }
   if (typeof record.emotion === 'string' && EMOTIONS.includes(record.emotion as Emotion)) {
     message.emotion = record.emotion as Emotion;
   }
@@ -158,7 +184,20 @@ export function createSessionStorage(storage: StringStorage | undefined): Sessio
         sessionKey(id),
         JSON.stringify({
           version: 1,
-          messages: snapshot.messages.slice(-HISTORY_LIMIT),
+          // Data URLs stay in memory: localStorage only keeps what the chip needs.
+          messages: snapshot.messages.slice(-HISTORY_LIMIT).map(({ attachments, ...message }) => ({
+            ...message,
+            ...(attachments?.length
+              ? {
+                  attachments: attachments.map(({ id: attachmentId, name, mime, size }) => ({
+                    id: attachmentId,
+                    name,
+                    mime,
+                    size,
+                  })),
+                }
+              : {}),
+          })),
           pendingId: snapshot.pendingId,
         }),
       );

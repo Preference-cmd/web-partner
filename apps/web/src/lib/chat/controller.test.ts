@@ -180,7 +180,10 @@ describe('chat controller', () => {
     const request = run.requests[0];
     const body = request?.messages.slice(1) ?? [];
     const total = body.reduce(
-      (sum, item) => sum + estimateTokens(item.content) + MESSAGE_OVERHEAD_TOKENS,
+      (sum, item) =>
+        sum +
+        estimateTokens(typeof item.content === 'string' ? item.content : '') +
+        MESSAGE_OVERHEAD_TOKENS,
       0,
     );
     expect(body.length).toBeGreaterThan(1);
@@ -204,7 +207,10 @@ describe('chat controller', () => {
     const request = run.requests[0];
     const body = request?.messages.slice(1) ?? [];
     const total = body.reduce(
-      (sum, item) => sum + estimateTokens(item.content) + MESSAGE_OVERHEAD_TOKENS,
+      (sum, item) =>
+        sum +
+        estimateTokens(typeof item.content === 'string' ? item.content : '') +
+        MESSAGE_OVERHEAD_TOKENS,
       0,
     );
     expect(request?.maxOutputTokens).toBe(2048);

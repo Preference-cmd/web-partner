@@ -62,6 +62,11 @@ change states its migration at the top of the release it ships in.
   log is memory only and a reload starts it empty.
 - A stage bubble: one line above the character, printed by the debug drawer,
   gone after ten seconds, without touching the chat, the model or the mood.
+- Attachments: up to four images (1 MB each) or plain-text files (64 KB each)
+  can be added, pasted or picked in the composer. Images travel inline as
+  content parts through `/api/chat`; the transcript keeps only each file's
+  name, type and size, so opening the conversation again shows them marked
+  已过期 instead of quietly dropping them.
 - Model presets and effort presets. Settings can store up to eight model names
   for the current endpoint and define what 轻 / 标准 / 深入 mean in output
   tokens; the composer shows a model menu and an effort menu, and switching
@@ -89,6 +94,9 @@ change states its migration at the top of the release it ships in.
 - Copy that described unfinished plans is gone: the login page states that the
   demo has no account system, and the settings page no longer shows a lighting
   row that only pointed at the debug drawer.
+- `/api/chat` accepts content parts (text plus base64 images) and raises the
+  request body cap from 512 KB to 2 MB; a text part keeps the 2 KB limit, an
+  image must be a base64 data URL of a supported type and at most 1 MB.
 - The composer follows the shadcn Prompt Input shape: one rounded input
   group, a p-3 text area, pill-shaped controls and an ArrowUp send button.
   Exports keep their names, so the chat panel only changes how it composes them.

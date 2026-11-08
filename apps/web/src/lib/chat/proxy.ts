@@ -2,9 +2,12 @@ import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createTextStreamResponse, type ModelMessage, streamText, toTextStream } from 'ai';
 import {
   clampOutputTokens,
+  IMAGE_BYTES_MAX,
+  IMAGE_MIME_TYPES,
   MAX_BODY_BYTES,
   MAX_ENDPOINT_CHARS,
   MAX_MESSAGE_BYTES,
+  MAX_MESSAGE_PARTS_BYTES,
   MAX_MESSAGES,
   OUTPUT_DEFAULT,
   TEMPERATURE,
@@ -56,6 +59,73 @@ export function parseEndpoint(raw: unknown): string | null {
   return url.toString().replace(/\/+$/u, '');
 }
 
+interface TextPart {
+  type: 'text';
+  text: string;
+}
+interface ImagePart {
+  type: 'image';
+  image: string;
+}
+type ContentPart = TextPart | ImagePart;
+
+const IMAGE_MIME = new Set<string>(IMAGE_MIME_TYPES);
+
+function readTextPart(value: unknown, budget: { bytes: number }): TextPart | string {
+  if (typeof value !== 'string') return 'text part must be a string';
+  const bytes = encoder.encode(value).byteLength;
+  if (bytes > MAX_MESSAGE_BYTES) return 'text part is too long';
+  budget.bytes += bytes;
+  return { type: 'text', text: value };
+}
+
+function readImagePart(value: unknown, budget: { bytes: number }): ImagePart | string {
+  if (typeof value !== 'string') return 'image part must be a data URL';
+  const match = /^data:(image\/[a-z0-9.+-]+);base64,/iu.exec(value);
+  if (!match) return 'image part must be a base64 data URL';
+  const mime = (match[1] ?? '').toLowerCase();
+  if (!IMAGE_MIME.has(mime)) return 'image type is not supported';
+  const bytes = Math.ceil(((value.length - match[0].length) * 3) / 4);
+  if (bytes > IMAGE_BYTES_MAX) return 'image is too large';
+  budget.bytes += bytes;
+  return { type: 'image', image: value };
+}
+
+type ReadContent = { ok: true; content: string | ContentPart[] } | { ok: false; error: string };
+
+/** A message is either plain text or text/image parts, the shape the SDK sends. */
+function readContent(value: unknown): ReadContent {
+  if (typeof value === 'string') {
+    if (encoder.encode(value).byteLength > MAX_MESSAGE_BYTES) {
+      return { ok: false, error: 'message content is too long' };
+    }
+    return { ok: true, content: value };
+  }
+  if (!Array.isArray(value) || value.length === 0) {
+    return { ok: false, error: 'message content must be text or content parts' };
+  }
+  const budget = { bytes: 0 };
+  const parts: ContentPart[] = [];
+  for (const raw of value) {
+    if (typeof raw !== 'object' || raw === null) {
+      return { ok: false, error: 'each content part must be an object' };
+    }
+    const part = raw as Record<string, unknown>;
+    const parsed =
+      part.type === 'text'
+        ? readTextPart(part.text, budget)
+        : part.type === 'image'
+          ? readImagePart(part.image, budget)
+          : 'unsupported content part';
+    if (typeof parsed === 'string') return { ok: false, error: parsed };
+    if (budget.bytes > MAX_MESSAGE_PARTS_BYTES) {
+      return { ok: false, error: 'message content is too large' };
+    }
+    parts.push(parsed);
+  }
+  return { ok: true, content: parts };
+}
+
 function readMessages(value: unknown): ModelMessage[] | string {
   if (!Array.isArray(value) || value.length === 0) return 'messages must be a non-empty array';
   if (value.length > MAX_MESSAGES) {
@@ -69,11 +139,9 @@ function readMessages(value: unknown): ModelMessage[] | string {
     if (role !== 'system' && role !== 'user' && role !== 'assistant') {
       return 'unsupported message role';
     }
-    if (typeof record.content !== 'string') return 'message content must be a string';
-    if (encoder.encode(record.content).byteLength > MAX_MESSAGE_BYTES) {
-      return 'message content is too long';
-    }
-    messages.push({ role, content: record.content });
+    const content = readContent(record.content);
+    if (!content.ok) return content.error;
+    messages.push({ role, content: content.content } as ModelMessage);
   }
   return messages;
 }

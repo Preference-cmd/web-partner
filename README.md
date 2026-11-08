@@ -23,6 +23,9 @@ key stay in the browser.
   Worker, or directly from the browser for a local model. Up to eight model
   presets sit behind the composer's model menu, and the 努力 menu switches the
   output budget between light, standard, deep and a custom value.
+- **Attachments without a server.** Up to four images (1 MB each) or plain
+  text files (64 KB each) per message; they are sent inline with that turn and
+  never stored, so a reloaded conversation shows the filename marked 已过期.
 - **Twenty conversations on this device.** Up to 20 sessions of 100 messages are
   kept in the browser, with switch, inline rename, delete and a one-time
   migration from `partner.chat.v1`.
