@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { CHAT_KEY, type ChatSnapshot, createChatStorage } from './chat-storage';
 import { type ChatLog, createChatController, SYSTEM_PROMPT } from './controller';
 import { DEMO_POOL, GREETING } from './demo';
+import {
+  createSessionStorage,
+  DEFAULT_TITLE,
+  LEGACY_CHAT_KEY,
+  SESSION_LIMIT,
+  type SessionMessages,
+} from './session-storage';
 import { DEFAULT_SETTINGS, type Settings, type StringStorage } from './settings';
 import type { ChatRequest, StreamTransport } from './transport';
 import type { Message } from './types';
@@ -9,6 +15,10 @@ import type { Message } from './types';
 function memoryStorage(): StringStorage {
   const map = new Map<string, string>();
   return {
+    get length() {
+      return map.size;
+    },
+    key: (index) => [...map.keys()][index] ?? null,
     getItem: (key) => map.get(key) ?? null,
     setItem: (key, value) => {
       map.set(key, value);
@@ -32,15 +42,21 @@ interface HarnessOptions {
   apiKey?: string;
   transport?: StreamTransport;
   sleep?: (ms: number, signal: AbortSignal) => Promise<void>;
-  stored?: ChatSnapshot;
+  stored?: SessionMessages;
   random?: () => number;
 }
 
 function makeHarness(options: HarnessOptions = {}) {
   const raw = memoryStorage();
-  if (options.stored) raw.setItem(CHAT_KEY, JSON.stringify(options.stored));
-  const storage = createChatStorage(raw);
-  const writes: ChatSnapshot[] = [];
+  const storage = createSessionStorage(raw);
+  if (options.stored) {
+    storage.writeIndex({
+      activeId: 's-test',
+      sessions: [{ id: 's-test', title: DEFAULT_TITLE, createdAt: 1000, updatedAt: 1000 }],
+    });
+    storage.writeMessages('s-test', options.stored);
+  }
+  const writes: SessionMessages[] = [];
   const requests: ChatRequest[] = [];
   const entries: ChatLog[] = [];
   let ids = 0;
@@ -52,11 +68,10 @@ function makeHarness(options: HarnessOptions = {}) {
   };
   const controller = createChatController({
     storage: {
-      read: storage.read,
-      clear: storage.clear,
-      write: (snapshot) => {
+      ...storage,
+      writeMessages: (id, snapshot) => {
         writes.push(snapshot);
-        storage.write(snapshot);
+        storage.writeMessages(id, snapshot);
       },
     },
     getConfig: () => ({
@@ -76,11 +91,15 @@ function makeHarness(options: HarnessOptions = {}) {
   return {
     controller,
     raw,
+    storage,
     writes,
     requests,
     entries,
     logs: () => entries.map((entry) => entry.text),
     last: () => controller.store.getState().messages.at(-1),
+    sessions: () => controller.store.getState().sessions,
+    activeId: () => controller.store.getState().activeId ?? '',
+    stored: (id: string) => storage.readMessages(id),
   };
 }
 
@@ -321,34 +340,47 @@ describe('chat controller', () => {
     expect(messages[0]?.content).toBe(GREETING);
     expect(messages[0]?.source).toBe('demo');
     expect(run.writes).toHaveLength(1);
+    expect(run.sessions()).toHaveLength(1);
+    expect(run.sessions()[0]?.title).toBe(DEFAULT_TITLE);
   });
 
-  it('clears the conversation and its storage', async () => {
+  it('clears the active conversation but keeps its session', async () => {
     const run = makeHarness();
     run.controller.hydrate();
     run.controller.send('在吗');
     await run.controller.settled();
     run.controller.clear();
     expect(run.controller.store.getState().messages).toEqual([]);
-    expect(run.raw.getItem(CHAT_KEY)).toBeNull();
+    expect(run.stored(run.activeId())?.messages).toEqual([]);
+    expect(run.sessions()).toHaveLength(1);
   });
 
-  it('restarts with a single greeting and drops the old history', async () => {
+  it('starts a new conversation without dropping the old one', async () => {
     const run = makeHarness();
     run.controller.hydrate();
     run.controller.send('在吗');
     await run.controller.settled();
-    run.controller.restart();
+    const first = run.activeId();
+    run.controller.newSession();
     const state = run.controller.store.getState();
     expect(state.messages).toHaveLength(1);
     expect(state.messages[0]?.content).toBe(GREETING);
-    expect(state.status).toBe('idle');
-    expect(state.pendingId).toBeNull();
-    expect(state.emotion).toBe('idle');
-    expect(run.raw.getItem(CHAT_KEY)).toContain('"pendingId":null');
+    expect(state.activeId).not.toBe(first);
+    expect(state.sessions).toHaveLength(2);
+    expect(state.sessions.find((session) => session.id === first)?.title).toBe('在吗');
   });
 
-  it('stops a running reply when it restarts', async () => {
+  it('reuses an empty conversation instead of piling up sessions', () => {
+    const run = makeHarness();
+    run.controller.hydrate();
+    const first = run.activeId();
+    run.controller.newSession();
+    run.controller.newSession();
+    expect(run.sessions()).toHaveLength(1);
+    expect(run.activeId()).toBe(first);
+  });
+
+  it('stops a running reply when a new conversation starts', async () => {
     let aborted = false;
     const run = makeHarness({
       sleep: (_ms, signal) =>
@@ -362,7 +394,7 @@ describe('chat controller', () => {
     });
     run.controller.hydrate();
     run.controller.send('在吗');
-    run.controller.restart();
+    run.controller.newSession();
     await flush();
     expect(aborted).toBe(true);
     expect(run.controller.store.getState().messages).toHaveLength(1);
@@ -374,7 +406,9 @@ describe('chat controller', () => {
     run.controller.hydrate();
     run.controller.send('今天好累');
     await run.controller.settled();
-    expect(run.entries[0]).toEqual({ source: 'user', text: '今天好累' });
+    expect(run.entries.some((entry) => entry.source === 'user' && entry.text === '今天好累')).toBe(
+      true,
+    );
     expect(run.entries.at(-1)?.source).toBe('demo');
     expect(run.entries.at(-1)?.text).toContain('回复完成');
   });
@@ -384,7 +418,7 @@ describe('chat controller', () => {
     run.controller.hydrate();
     run.controller.quickReply('摸摸头');
     await run.controller.settled();
-    expect(run.entries[0]?.source).toBe('quick');
+    expect(run.entries.some((entry) => entry.source === 'quick')).toBe(true);
   });
 
   it('logs a forced emotion as a debug line', () => {
@@ -399,8 +433,110 @@ describe('chat controller', () => {
     const run = makeHarness();
     run.controller.hydrate();
     run.controller.send('很'.repeat(80));
-    const line = run.entries[0]?.text ?? '';
+    const line = run.entries.find((entry) => entry.source === 'user')?.text ?? '';
     expect(line).toHaveLength(49);
     expect(line.endsWith('…')).toBe(true);
+  });
+
+  it('switches conversations and keeps each transcript', async () => {
+    const run = makeHarness();
+    run.controller.hydrate();
+    run.controller.quickReply('摸摸头');
+    await run.controller.settled();
+    const first = run.activeId();
+    expect(run.controller.store.getState().emotion).toBe('shy');
+    run.controller.newSession();
+    const second = run.activeId();
+    run.controller.quickReply('夸夸我');
+    await run.controller.settled();
+    expect(run.activeId()).toBe(second);
+    run.controller.switchSession(first);
+    const state = run.controller.store.getState();
+    expect(state.activeId).toBe(first);
+    expect(state.messages).toHaveLength(3);
+    expect(state.messages[1]?.content).toBe('摸摸头');
+    expect(state.emotion).toBe('shy');
+    expect(run.stored(second)?.messages).toHaveLength(3);
+  });
+
+  it('renames a session and keeps the name', async () => {
+    const run = makeHarness();
+    run.controller.hydrate();
+    const id = run.activeId();
+    run.controller.renameSession(id, '  我们的夜里  ');
+    expect(run.sessions()[0]?.title).toBe('我们的夜里');
+    run.controller.renameSession(id, '   ');
+    expect(run.sessions()[0]?.title).toBe('我们的夜里');
+    run.controller.quickReply('在吗');
+    await run.controller.settled();
+    expect(run.sessions()[0]?.title).toBe('我们的夜里');
+  });
+
+  it('deletes a session and falls back to the most recent one', async () => {
+    const run = makeHarness();
+    run.controller.hydrate();
+    run.controller.quickReply('第一句');
+    await run.controller.settled();
+    const first = run.activeId();
+    run.controller.newSession();
+    run.controller.quickReply('第二句');
+    await run.controller.settled();
+    const second = run.activeId();
+    run.controller.deleteSession(first);
+    expect(run.sessions()).toHaveLength(1);
+    expect(run.stored(first)).toBeNull();
+    expect(run.activeId()).toBe(second);
+    run.controller.deleteSession(second);
+    expect(run.sessions()).toHaveLength(1);
+    expect(run.controller.store.getState().messages[0]?.content).toBe(GREETING);
+    expect(run.activeId()).not.toBe(second);
+  });
+
+  it('caps the number of sessions and drops the oldest body', async () => {
+    const run = makeHarness();
+    run.controller.hydrate();
+    const ids = [run.activeId()];
+    for (let index = 0; index < SESSION_LIMIT + 2; index += 1) {
+      run.controller.quickReply('第' + index + '句');
+      await run.controller.settled();
+      run.controller.newSession();
+      ids.push(run.activeId());
+    }
+    expect(run.sessions()).toHaveLength(SESSION_LIMIT);
+    expect(run.stored(ids[0] ?? '')).toBeNull();
+  });
+
+  it('migrates the single conversation into a session', () => {
+    const run = makeHarness();
+    run.raw.setItem(
+      LEGACY_CHAT_KEY,
+      JSON.stringify({
+        version: 1,
+        messages: [message('a', 'user', '旧话'), message('b', 'assistant', '嗯')],
+        pendingId: null,
+      }),
+    );
+    run.controller.hydrate();
+    const state = run.controller.store.getState();
+    expect(state.messages.map((item) => item.content)).toEqual(['旧话', '嗯']);
+    expect(state.sessions[0]?.title).toBe('旧话');
+    expect(run.raw.getItem(LEGACY_CHAT_KEY)).toBeNull();
+    expect(run.entries.some((entry) => entry.text.includes('迁移'))).toBe(true);
+  });
+
+  it('drops a legacy record that only holds the greeting', () => {
+    const run = makeHarness();
+    run.raw.setItem(
+      LEGACY_CHAT_KEY,
+      JSON.stringify({
+        version: 1,
+        messages: [message('g', 'assistant', GREETING)],
+        pendingId: null,
+      }),
+    );
+    run.controller.hydrate();
+    expect(run.raw.getItem(LEGACY_CHAT_KEY)).toBeNull();
+    expect(run.sessions()).toHaveLength(1);
+    expect(run.controller.store.getState().messages[0]?.content).toBe(GREETING);
   });
 });

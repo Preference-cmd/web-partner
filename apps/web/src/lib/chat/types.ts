@@ -15,12 +15,22 @@ export interface Message {
   at: number;
 }
 
+/** What the sidebar needs; the transcript itself lives in its own record. */
+export interface SessionSummary {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface ChatState {
   messages: Message[];
   status: ChatStatus;
   abort: AbortController | null;
   pendingId: string | null;
   emotion: Emotion;
+  sessions: SessionSummary[];
+  activeId: string | null;
 }
 
 export interface ModelMessage {

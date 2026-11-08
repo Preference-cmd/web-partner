@@ -35,7 +35,7 @@ import { Slider } from '@/components/ui/slider';
 import { Toaster } from '@/components/ui/sonner';
 import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { createChatStorage } from '@/lib/chat/chat-storage';
+import { createSessionStorage } from '@/lib/chat/session-storage';
 import {
   ALPHA_DEFAULT,
   ALPHA_MAX,
@@ -71,7 +71,7 @@ type ModeChoice = (typeof MODE_OPTIONS)[number]['id'];
 
 /** The chat controller outlives this page; clearing history must reach it. */
 interface ClearableChat {
-  clear: () => void;
+  resetAll: () => void;
 }
 
 function chatController(): ClearableChat | undefined {
@@ -131,8 +131,12 @@ export default function SettingsPanel() {
   }
 
   function clearHistory(): void {
-    createChatStorage(window.localStorage).clear();
-    chatController()?.clear();
+    const controller = chatController();
+    if (controller) {
+      controller.resetAll();
+    } else {
+      createSessionStorage(window.localStorage).clearAll();
+    }
     toast.success('历史已清空');
   }
 
@@ -389,7 +393,8 @@ export default function SettingsPanel() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>清空本机的对话历史？</AlertDialogTitle>
                       <AlertDialogDescription>
-                        最多 100 条消息会从 localStorage 删除，这个操作不可撤销。
+                        本机的最多 20 段对话、每段 100 条消息会从 localStorage
+                        删除，这个操作不可撤销。
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -440,7 +445,8 @@ export default function SettingsPanel() {
                 </AlertDialog>
               </div>
               <FieldDescription>
-                三项互相独立：历史最多 100 条存在 localStorage，key 在当前标签页，设置同样在本机。
+                三项互相独立：对话按会话存在 localStorage（最多 20 段、每段 100 条），key
+                在当前标签页，设置同样在本机。
               </FieldDescription>
             </CardContent>
           </Card>

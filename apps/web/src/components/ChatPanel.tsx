@@ -115,7 +115,6 @@ export default function ChatPanel() {
   const emotion = useStore(controller.store, (state) => state.emotion);
   const [draft, setDraft] = useState('');
   const [collapsed, setCollapsed] = useState(false);
-  const [confirmNew, setConfirmNew] = useState(false);
   const [mode, setMode] = useState<ChatMode>('demo');
   const panelRef = useRef<HTMLElement>(null);
   const syncRef = useRef<(() => void) | null>(null);
@@ -189,33 +188,12 @@ export default function ChatPanel() {
     if (!collapsed) syncRef.current?.();
   }, [collapsed]);
 
-  // Arriving from another page with ?new=1: the store is hydrated by the effect above,
-  // so the guard can run here and the query never survives a refresh.
+  // Arriving from another page with ?new=1: a new conversation is not destructive any more,
+  // so the query only has to start one and disappear.
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get('new') !== '1') return;
-    const hasUserMessage = controller.store
-      .getState()
-      .messages.some((message) => message.role === 'user');
     window.history.replaceState(null, '', window.location.pathname);
-    if (hasUserMessage) setConfirmNew(true);
-    else controller.restart();
-  }, [controller]);
-
-  // The sidebar owns the link; this island owns the store, so the guard lives here.
-  useEffect(() => {
-    function onClick(event: MouseEvent): void {
-      const target =
-        event.target instanceof Element ? event.target.closest('[data-new-chat]') : null;
-      if (!target) return;
-      event.preventDefault();
-      const hasUserMessage = controller.store
-        .getState()
-        .messages.some((message) => message.role === 'user');
-      if (hasUserMessage) setConfirmNew(true);
-      else controller.restart();
-    }
-    document.addEventListener('click', onClick);
-    return () => document.removeEventListener('click', onClick);
+    controller.newSession();
   }, [controller]);
 
   // Reaching the composer should not cost fifteen tabs.
@@ -321,19 +299,6 @@ export default function ChatPanel() {
           </Button>
         </div>
       </div>
-
-      <AlertDialog open={confirmNew} onOpenChange={setConfirmNew}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>开始新对话？</AlertDialogTitle>
-            <AlertDialogDescription>现在这段对话会被清掉，清掉就回不来了。</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={() => controller.restart()}>新对话</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Kept mounted while collapsed: the resize observer below holds its node. */}
       <Conversation
