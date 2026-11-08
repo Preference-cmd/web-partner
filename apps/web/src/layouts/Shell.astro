@@ -64,17 +64,20 @@ const { title = "伴侣小生命" } = Astro.props;
       <DebugPanel client:load />
     </div>
     <script>
-      import { mountCharacter } from "../lib/character/renderer";
+      import { mountCharacter, type RendererKind } from "../lib/character/renderer";
+      import { applyPanelPrefs, loadPanelPrefs } from "../lib/debug/prefs";
 
       let dispose: (() => void) | undefined;
 
       function mount(): void {
+        const prefs = loadPanelPrefs(localStorage);
+        applyPanelPrefs(document.documentElement, prefs);
         const canvas = document.querySelector<HTMLCanvasElement>("[data-character-canvas]");
-        if (!canvas || canvas.dataset.mounted) return;
+        if (!canvas || canvas.dataset.mounted === prefs.renderer) return;
         dispose?.();
         dispose = undefined;
-        canvas.dataset.mounted = "1";
-        dispose = mountCharacter(canvas).dispose;
+        canvas.dataset.mounted = prefs.renderer;
+        dispose = mountCharacter(canvas, { renderer: prefs.renderer }).dispose;
       }
 
       mount();
@@ -82,6 +85,11 @@ const { title = "伴侣小生命" } = Astro.props;
       document.addEventListener("astro:before-swap", () => {
         dispose?.();
         dispose = undefined;
+      });
+      // The panel saves the choice, then asks the stage to pick it up.
+      window.addEventListener("partner:renderer", (event) => {
+        const detail = (event as CustomEvent<{ renderer?: RendererKind }>).detail;
+        if (detail?.renderer) mount();
       });
     </script>
   </body>

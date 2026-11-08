@@ -16,9 +16,18 @@ import {
 /** Every pose ships on the same 512x512 canvas, so one scale keeps them aligned. */
 const IMAGE_SIZE = 512;
 const MAX_DPR = 2;
+/** One FPS sample a second is enough for the panel; counting every frame is not. */
+const FPS_WINDOW_MS = 1000;
+
+/** The stage either animates the canvas or holds one still frame. */
+export type RendererKind = 'canvas2d' | 'static';
 
 export interface CharacterHandle {
   dispose: () => void;
+}
+
+export interface CharacterOptions {
+  renderer?: RendererKind;
 }
 
 function prefersReducedMotion(): boolean {
@@ -48,8 +57,12 @@ function loadPose(emotion: Emotion): Promise<HTMLImageElement> {
  * feet, and a crossfade when the chat writes a new emotion. Missing images or a
  * lost 2D context leave the stage to its aura instead of throwing.
  */
-export function mountCharacter(canvas: HTMLCanvasElement): CharacterHandle {
+export function mountCharacter(
+  canvas: HTMLCanvasElement,
+  options: CharacterOptions = {},
+): CharacterHandle {
   const host = canvas.parentElement ?? canvas;
+  const kind: RendererKind = options.renderer ?? 'canvas2d';
   const maybeContext = canvas.getContext('2d');
   if (!maybeContext) {
     host.dataset.characterState = 'missing';
@@ -67,10 +80,17 @@ export function mountCharacter(canvas: HTMLCanvasElement): CharacterHandle {
   let poseChangedAt = 0;
   let dwellTimer: number | undefined;
   let frameId = 0;
+  let frames = 0;
+  let sampledAt = 0;
   let width = 1;
   let height = 1;
   let scale = 1;
   let reduced = prefersReducedMotion();
+
+  // A still frame and a reduced-motion stage share the same drawing path.
+  function frozen(): boolean {
+    return reduced || kind === 'static';
+  }
 
   function draw(time: number): void {
     context.setTransform(scale, 0, 0, scale, 0, 0);
@@ -78,8 +98,8 @@ export function mountCharacter(canvas: HTMLCanvasElement): CharacterHandle {
     if (!ready) return;
 
     const period = breathPeriod(current);
-    const clock = reduced ? 0 : time;
-    const sway = reduced ? 0 : swayAngle(time, period, MAX_SWAY_DEG);
+    const clock = frozen() ? 0 : time;
+    const sway = frozen() ? 0 : swayAngle(time, period, MAX_SWAY_DEG);
 
     context.save();
     context.translate(width / 2, height);
@@ -106,7 +126,7 @@ export function mountCharacter(canvas: HTMLCanvasElement): CharacterHandle {
 
     context.globalAlpha = Math.max(0, Math.min(1, alpha));
     for (let index = 0; index < SLICES; index++) {
-      const offset = reduced ? 0 : sliceOffset(index, SLICES, time, period, MAX_SLICE_PX);
+      const offset = frozen() ? 0 : sliceOffset(index, SLICES, time, period, MAX_SLICE_PX);
       context.drawImage(
         image,
         0,
@@ -122,20 +142,39 @@ export function mountCharacter(canvas: HTMLCanvasElement): CharacterHandle {
     context.globalAlpha = 1;
   }
 
+  // The panel reads one sample a second from the dataset; a stopped stage has none.
+  function sampleFps(timestamp: number): void {
+    frames += 1;
+    if (sampledAt === 0) {
+      sampledAt = timestamp;
+      frames = 0;
+      return;
+    }
+    const elapsed = timestamp - sampledAt;
+    if (elapsed < FPS_WINDOW_MS) return;
+    host.dataset.fps = String(Math.round((frames * 1000) / elapsed));
+    frames = 0;
+    sampledAt = timestamp;
+  }
+
   function loop(timestamp: number): void {
-    if (disposed || reduced) return;
+    if (disposed || frozen()) return;
     frameId = requestAnimationFrame(loop);
     draw(timestamp);
+    sampleFps(timestamp);
   }
 
   function start(): void {
-    if (disposed || reduced || frameId !== 0) return;
+    if (disposed || frozen() || frameId !== 0) return;
     frameId = requestAnimationFrame(loop);
   }
 
   function stop(): void {
     if (frameId !== 0) cancelAnimationFrame(frameId);
     frameId = 0;
+    frames = 0;
+    sampledAt = 0;
+    delete host.dataset.fps;
   }
 
   function resize(): void {
@@ -154,7 +193,8 @@ export function mountCharacter(canvas: HTMLCanvasElement): CharacterHandle {
     current = next;
     startedAt = performance.now();
     poseChangedAt = startedAt;
-    if (reduced) {
+    host.dataset.pose = next;
+    if (frozen()) {
       previous = null;
       draw(startedAt);
       return;
@@ -216,6 +256,8 @@ export function mountCharacter(canvas: HTMLCanvasElement): CharacterHandle {
   const media = window.matchMedia('(prefers-reduced-motion: reduce)');
   media.addEventListener('change', syncMotion);
 
+  host.dataset.renderer = kind;
+  host.dataset.pose = current;
   resize();
 
   Promise.all((Object.keys(POSE_FILES) as Emotion[]).map((pose) => loadPose(pose)))
@@ -244,6 +286,9 @@ export function mountCharacter(canvas: HTMLCanvasElement): CharacterHandle {
       media.removeEventListener('change', syncMotion);
       document.removeEventListener('visibilitychange', onVisibility);
       delete host.dataset.characterState;
+      delete host.dataset.pose;
+      delete host.dataset.renderer;
+      delete host.dataset.fps;
     },
   };
 }
