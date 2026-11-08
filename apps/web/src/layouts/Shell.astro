@@ -43,14 +43,60 @@ const { title = "伴侣小生命" } = Astro.props;
           <canvas class="stage-canvas" data-character-canvas aria-hidden="true"></canvas>
           <p class="stage-bubble" data-character-bubble data-visible="false" role="status"></p>
           <p class="stage-fallback">角色暂时没有出现</p>
+          <button type="button" class="stage-touch" data-stage-touch aria-label="摸摸头"></button>
         </div>
         <slot />
       </main>
       <DebugPanel client:load />
     </div>
     <script>
+      import { showBubble } from "../lib/character/bubble";
       import { mountCharacter, type RendererKind } from "../lib/character/renderer";
       import { applyPanelPrefs, loadPanelPrefs } from "../lib/debug/prefs";
+
+      const TOUCH_LINES = ["嗯？", "我在听。", "怎么啦？", "……嗯。"];
+
+      /** Click is a head pat, a held press or Enter is a line; neither steals focus. */
+      function wireStageTouch(): void {
+        const button = document.querySelector<HTMLButtonElement>("[data-stage-touch]");
+        if (!button || button.dataset.wired === "true") return;
+        button.dataset.wired = "true";
+        button.addEventListener("mousedown", (event) => event.preventDefault());
+        let timer: number | undefined;
+        let held = false;
+        const stop = (): void => {
+          if (timer !== undefined) window.clearTimeout(timer);
+          timer = undefined;
+        };
+        const speak = (): void => {
+          const line = TOUCH_LINES[Math.floor(Math.random() * TOUCH_LINES.length)] ?? "嗯？";
+          showBubble(line);
+        };
+        button.addEventListener("pointerdown", () => {
+          held = false;
+          stop();
+          timer = window.setTimeout(() => {
+            held = true;
+            speak();
+          }, 500);
+        });
+        button.addEventListener("pointerup", stop);
+        button.addEventListener("pointercancel", stop);
+        button.addEventListener("pointerleave", stop);
+        button.addEventListener("click", (event) => {
+          stop();
+          if (held) {
+            held = false;
+            return;
+          }
+          // detail 0 is a keyboard activation: say a line instead of a head pat.
+          if (event.detail === 0) {
+            speak();
+            return;
+          }
+          window.dispatchEvent(new CustomEvent("partner:touch"));
+        });
+      }
 
       let dispose: (() => void) | undefined;
 
@@ -66,7 +112,12 @@ const { title = "伴侣小生命" } = Astro.props;
       }
 
       mount();
-      document.addEventListener("astro:page-load", mount);
+      wireStageTouch();
+      document.addEventListener("astro:page-load", () => {
+        mount();
+        wireStageTouch();
+      });
+
       document.addEventListener("astro:before-swap", () => {
         dispose?.();
         dispose = undefined;

@@ -28,22 +28,18 @@ import { clearLog, LOG_LIMIT, type LogSource, logStore, pushLog } from '@/lib/de
 import {
   applyPanelPrefs,
   DEFAULT_PANEL_PREFS,
+  LIGHT_EVENT,
+  LIGHT_THEMES,
   type LightTheme,
   loadPanelPrefs,
   type PanelPrefs,
   savePanelPrefs,
+  setLight,
 } from '@/lib/debug/prefs';
 import { requestSettings } from '@/lib/ui/open-settings';
 import { useMediaQuery } from '@/lib/ui/use-media-query';
 
 const EMOTIONS: ReadonlyArray<Emotion> = ['idle', 'happy', 'shy', 'sleepy'];
-
-const LIGHTS: ReadonlyArray<{ id: LightTheme; label: string }> = [
-  { id: 'night', label: '冷夜空' },
-  { id: 'dusk', label: '暖黄昏' },
-  { id: 'deep', label: '深夜' },
-  { id: 'dawn', label: '清晨' },
-];
 
 const RENDERERS: ReadonlyArray<{ id: RendererKind; label: string; hint: string }> = [
   { id: 'canvas2d', label: '动画', hint: '呼吸、摆动与交叉淡化' },
@@ -173,6 +169,18 @@ export default function DebugPanel() {
     setApiKey(readApiKey(window.sessionStorage, window.localStorage));
   }, []);
 
+  // The settings page owns the other light switch; follow it instead of copying it.
+  useEffect(() => {
+    const sync = (event: Event): void => {
+      const next = (event as CustomEvent<{ light?: LightTheme }>).detail?.light;
+      if (!next) return;
+      prefsRef.current = { ...prefsRef.current, light: next };
+      setPrefs((current) => ({ ...current, light: next }));
+    };
+    window.addEventListener(LIGHT_EVENT, sync);
+    return () => window.removeEventListener(LIGHT_EVENT, sync);
+  }, []);
+
   // The preference can arrive from the media query or from the settings page.
   useEffect(() => {
     const list = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -226,10 +234,10 @@ export default function DebugPanel() {
   }
 
   function chooseLight(next: string): void {
-    const light = LIGHTS.find((item) => item.id === next);
+    const light = LIGHT_THEMES.find((item) => item.id === next);
     if (!light) return;
-    const updated = updatePrefs({ light: light.id });
-    applyPanelPrefs(document.documentElement, updated);
+    setLight(window.localStorage, light.id);
+    updatePrefs({ light: light.id });
     pushLog('debug', `灯光切到${light.label}`);
   }
 
@@ -316,7 +324,7 @@ export default function DebugPanel() {
           aria-label="灯光主题"
           className="grid grid-cols-2 gap-1"
         >
-          {LIGHTS.map((item) => (
+          {LIGHT_THEMES.map((item) => (
             <ToggleGroupItem key={item.id} value={item.id}>
               {item.label}
             </ToggleGroupItem>

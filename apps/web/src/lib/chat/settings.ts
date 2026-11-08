@@ -66,6 +66,8 @@ export interface Settings {
   panelHeight: number | null;
   modelPresets: ModelPreset[];
   effort: Effort;
+  /** The reply's first sentence also lands in the stage bubble. */
+  echo: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -81,6 +83,7 @@ export const DEFAULT_SETTINGS: Settings = {
   panelHeight: null,
   modelPresets: [],
   effort: 'off',
+  echo: true,
 };
 
 function parseAlpha(value: unknown): number {
@@ -174,6 +177,7 @@ export function loadSettings(storage: StringStorage | undefined): Settings {
           : null,
       modelPresets: parseModelPresets(record.modelPresets),
       effort: parseEffort(record.effort),
+      echo: record.echo !== false,
     };
   } catch {
     return { ...DEFAULT_SETTINGS };

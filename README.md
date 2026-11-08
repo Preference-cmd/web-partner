@@ -16,7 +16,9 @@ key stay in the browser.
 ## Features
 
 - **A character that reacts.** Four 512×512 poses (idle, happy, shy, sleepy) are
-  drawn on a Canvas 2D canvas and breathe, sway and crossfade with the mood.
+  drawn on a Canvas 2D canvas and breathe, sway and crossfade with the mood. She
+  is also a button: a tap is a head pat, a held press or Enter says a line, and
+  each reply drops its first sentence onto the stage (switchable in 外观).
 - **Chat that works before setup.** Demo replies stream from local templates,
   and three quick actions answer without a model.
 - **Bring your own model.** Any OpenAI-compatible endpoint works through the
@@ -32,8 +34,9 @@ key stay in the browser.
   migration from `partner.chat.v1`.
 - **Settings that walk you through it.** The dialog is three steps — 连接,
   测试连接, 模式与外观 — with the model-call numbers, data and about under 更多.
-  The connection test sends one ping and names what failed, while the drawer
-  exposes the pose, FPS, log lines, forced moods and stage lighting.
+  Appearance owns opacity, the reply echo, the four stage lights and motion; the
+  connection test sends one ping and names what failed. The debug drawer keeps
+  the pose, FPS, log lines and forced moods, plus its own light switch.
 - **Details that matter.** `Cmd/Ctrl+K` or `/` focuses the composer,
   destructive actions ask in dialogs, the layout becomes sheets on phones, and
   every control a thumb needs is at least 44×44 there.

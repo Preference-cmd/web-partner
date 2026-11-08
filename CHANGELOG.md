@@ -80,6 +80,11 @@ change states its migration at the top of the release it ships in.
 - A connection test in settings: one minimal non-streaming turn through the
   same path the chat uses, answered as 通过 / key 被拒 / 端点不可达 / 未填完 with a
   reason. It writes nothing, retries nothing and never logs the key.
+- The character is part of the interface: the figure is a button (a tap is a
+  head pat, a held press or Enter says a line from the stage bubble), every reply
+  drops its first sentence onto the stage unless 外观 → 回复回声 is off, the
+  composer's placeholder follows her mood, and 外观 now owns the four stage
+  lights, kept in step with the debug drawer through `partner.panel.v1`.
 - On a phone the primary controls answer to a thumb: send and stop, the fold and
   clear controls, quick actions, the drawer button, the debug button, session
   rename/delete and every sheet close are at least 44×44, and the quick actions

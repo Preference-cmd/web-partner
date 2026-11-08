@@ -64,6 +64,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { InputGroupButton } from '@/components/ui/input-group';
+import { firstSentence, showBubble } from '@/lib/character/bubble';
 import { getChatController } from '@/lib/chat/controller';
 import { QUICK_ACTIONS } from '@/lib/chat/demo';
 import { EMOTION_LABEL } from '@/lib/chat/emotion';
@@ -130,6 +131,14 @@ const EMOTION_DOT: Record<Emotion, string> = {
   happy: 'bg-amber-400',
   shy: 'bg-pink-400',
   sleepy: 'bg-slate-400',
+};
+
+/** The composer asks the question the mood asks. */
+const PLACEHOLDER: Record<Emotion, string> = {
+  idle: '和她说点什么…',
+  happy: '她正开心，说点什么？',
+  shy: '她有点害羞…',
+  sleepy: '她困了，轻声说…',
 };
 
 function MessageRow({ message, index }: { message: ChatMessage; index: number }) {
@@ -260,6 +269,32 @@ export default function ChatPanel() {
   useEffect(() => {
     document.documentElement.dataset.emotion = emotion;
   }, [emotion]);
+
+  // The stage button is outside this island; it asks for a head pat through an event.
+  useEffect(() => {
+    const onTouch = (): void => controller.quickReply('摸摸头');
+    window.addEventListener('partner:touch', onTouch);
+    return () => window.removeEventListener('partner:touch', onTouch);
+  }, [controller]);
+
+  // The reply's first sentence also lands on the stage, once per reply.
+  const echoedRef = useRef<string | null>(null);
+  useEffect(() => {
+    const last = [...messages]
+      .reverse()
+      .find((item) => item.role === 'assistant' && item.status === 'done');
+    if (!last) return;
+    if (echoedRef.current === null) {
+      // History was already there; only a new reply may speak.
+      echoedRef.current = last.id;
+      return;
+    }
+    if (echoedRef.current === last.id) return;
+    echoedRef.current = last.id;
+    if (!settings.echo) return;
+    const line = firstSentence(last.content);
+    if (line) showBubble(line);
+  }, [messages, settings.echo]);
 
   useEffect(() => {
     const stored = loadSettings(window.localStorage);
@@ -768,7 +803,7 @@ export default function ChatPanel() {
         <PromptInputBody>
           <PromptInputTextarea
             className="max-h-32 min-h-9 text-sm"
-            placeholder="和它说点什么…"
+            placeholder={PLACEHOLDER[emotion]}
             aria-label="消息"
             aria-keyshortcuts="Meta+K Control+K /"
             onChange={(event) => setDraft(event.target.value)}

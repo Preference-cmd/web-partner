@@ -3,6 +3,13 @@ export const BUBBLE_MS = 10_000;
 
 let timer: number | undefined;
 
+/** One short line is all a stage bubble shows; the chat keeps the rest. */
+export function firstSentence(text: string, max = 48): string {
+  const line = (text.split(/[。！？!?\n]/u)[0] ?? '').trim();
+  if (!line) return '';
+  return line.length > max ? `${line.slice(0, max)}…` : line;
+}
+
 function element(): HTMLElement | null {
   return document.querySelector<HTMLElement>('[data-character-bubble]');
 }

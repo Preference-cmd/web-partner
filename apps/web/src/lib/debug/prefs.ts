@@ -21,6 +21,24 @@ export const DEFAULT_PANEL_PREFS: PanelPrefs = {
 const LIGHTS: ReadonlyArray<LightTheme> = ['night', 'dusk', 'deep', 'dawn'];
 const RENDERERS: ReadonlyArray<RendererKind> = ['canvas2d', 'static'];
 
+/** The settings page and the debug drawer read one list, not two copies. */
+export const LIGHT_THEMES: ReadonlyArray<{ id: LightTheme; label: string }> = [
+  { id: 'night', label: '冷夜空' },
+  { id: 'dusk', label: '暖黄昏' },
+  { id: 'deep', label: '深夜' },
+  { id: 'dawn', label: '清晨' },
+];
+
+/** Both surfaces stay in step through this event, not through shared state. */
+export const LIGHT_EVENT = 'partner:light';
+
+export function setLight(storage: StringStorage | undefined, light: LightTheme): void {
+  const prefs: PanelPrefs = { ...loadPanelPrefs(storage), light };
+  savePanelPrefs(storage, prefs);
+  applyPanelPrefs(document.documentElement, prefs);
+  window.dispatchEvent(new CustomEvent(LIGHT_EVENT, { detail: { light } }));
+}
+
 function isLight(value: unknown): value is LightTheme {
   return typeof value === 'string' && (LIGHTS as ReadonlyArray<string>).includes(value);
 }

@@ -228,6 +228,25 @@ html[data-light="dawn"] {
   transform: rotate(45deg);
 }
 
+/* The figure is a canvas; this button is what a finger, a mouse or Tab hits. */
+.stage-touch {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  padding: 0;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.stage-touch:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 6px;
+}
+
 /* The stage keeps the figure clear of the panel; the chat island writes --panel-lift. */
 .stage-figure {
   --stage-filter: saturate(1);
