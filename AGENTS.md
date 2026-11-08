@@ -18,8 +18,8 @@ apps and is added when a second unit needs it.
 
 Out of scope until a proposal says otherwise: accounts, markdown rendering,
 server-side history, analytics. Attachments stay client-side — they ride along
-with one request and are never stored — and model presets are extra names for
-the same endpoint, not a provider picker.
+with one request and are never stored — and providers are user-defined
+OpenAI-compatible endpoints, not a built-in catalogue of vendors.
 
 ## Layout
 

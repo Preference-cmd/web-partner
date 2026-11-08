@@ -5,9 +5,9 @@
 
 **伴侣小生命** — a local-first AI companion demo. A drawn character, 小鲸, stands
 on a dark stage; a chat panel floats in front of her. It answers from local
-templates by default; point it at an OpenAI-compatible endpoint in settings and
-switch to live mode to talk to your own model. Conversations, settings and the
-key stay in the browser.
+templates by default; add a provider — a base URL, a key and a few model names —
+and switch to live mode to talk to your own model. Conversations, settings and
+the keys stay in the browser.
 
 [**Live demo**](https://partner-web.sq103832.workers.dev) · [Getting started](#getting-started) · [Bring your own model](#bring-your-own-model) · [Deploying](#deploying) · [License](#license)
 
@@ -21,22 +21,26 @@ key stay in the browser.
   each reply drops its first sentence onto the stage (switchable in 外观).
 - **Chat that works before setup.** Demo replies stream from local templates,
   and three quick actions answer without a model.
-- **Bring your own model.** Any OpenAI-compatible endpoint works through the
-  Worker, or directly from the browser for a local model. Up to eight model
-  presets sit behind the composer's model menu, and the 努力 menu picks how hard
-  a reasoning model should think, sent as `reasoning_effort`; it stays off by
-  default, so a plain model never receives the field.
+- **Bring your own model.** A provider is one OpenAI-compatible base URL, a key
+  and up to eight model names; add up to eight of them and the composer's model
+  menu groups the models by provider. Each provider lists the thinking levels it
+  accepts (最低, 低, 中, 高), so the 努力 menu only offers what that endpoint
+  understands — sent as `reasoning_effort`, off by default, so a plain model
+  never receives the field. Requests go through the Worker, or straight from the
+  browser for a local model.
 - **Attachments without a server.** Up to four images (1 MB each) or plain
   text files (64 KB each) per message; they are sent inline with that turn and
   never stored, so a reloaded conversation shows the filename marked 已过期.
 - **Twenty conversations on this device.** Up to 20 sessions of 100 messages are
   kept in the browser, with switch, inline rename, delete and a one-time
   migration from `partner.chat.v1`.
-- **Settings that walk you through it.** The dialog is three steps — 连接,
-  测试连接, 模式与外观 — with the model-call numbers, data and about under 更多.
-  Appearance owns opacity, the reply echo, the four stage lights and motion; the
-  connection test sends one ping and names what failed. The debug drawer keeps
-  the pose, FPS, log lines and forced moods, plus its own light switch.
+- **Settings with a map.** One dialog, a 供应商 list on the left rail and five
+  sections on the right: 供应商, 对话与调用, 外观, 数据, 关于. Adding a provider
+  opens a second dialog — name, protocol, base URL, proxy or direct, key, models
+  and the enabled thinking levels — where 验证并保存 sends one ping before it
+  saves. Appearance owns opacity, the reply echo, the four stage lights and
+  motion. The debug drawer keeps the pose, FPS, log lines and forced moods, plus
+  its own light switch.
 - **Details that matter.** `Cmd/Ctrl+K` or `/` focuses the composer,
   destructive actions ask in dialogs, the layout becomes sheets on phones, and
   every control a thumb needs is at least 44×44 there.
@@ -63,22 +67,25 @@ pnpm check       # lint, typecheck, test, build
 
 ## Bring your own model
 
-1. Open the settings dialog: sidebar → 设置, or `/?settings=1`. Each step has
-   its own link, so `/?settings=1#test` opens the test directly.
-2. Step 1, 连接: enter the base URL without `/chat/completions`, the model name
-   and the key; turn on 直连端点 for a local `http` endpoint or one that does not
-   allow CORS.
-3. Step 2, 测试连接: one ping through the same path the chat uses. It reports 通过,
-   key 被拒, 端点不可达 or what is still missing, without saving anything.
-4. Step 3, 模式与外观: switch to 实时 and set opacity and motion. Under 更多 sit the
-   output budget, context window, thinking intensity, model presets, data and
-   about; the composer menus then switch model and effort without opening
-   settings. The output budget stays a separate number: a reasoning model spends
-   it while it thinks, so raise it when answers stop mid-sentence.
+1. Open the settings dialog: sidebar → 设置, or `/?settings=1`. Sections have
+   their own links, so `/?settings=1#providers` opens on the supplier list.
+2. 供应商 → 添加供应商: a name (or leave it empty and the host is used), the base
+   URL without `/chat/completions`, the key, and one model name per row. Pick
+   经代理 to send through the Worker, or 浏览器直连 for a local `http` endpoint or
+   one that does not allow CORS.
+3. 启用的思考强度: tick the levels this endpoint accepts. The composer's 努力 menu
+   then offers 关 plus exactly those levels.
+4. 验证并保存 sends one ping with the values still on screen and reports 通过,
+   key 被拒 or 端点不可达; a failed test can still be saved with 仍然保存.
+5. 对话与调用: switch to 实时, and set the output budget, context window and the
+   thinking level in force. The output budget stays a separate number: a
+   reasoning model spends it while it thinks, so raise it when answers stop
+   mid-sentence.
 
-The sidebar chip names the mode in force. The key lives in `sessionStorage` and
-is gone when the tab closes; a failed upstream falls back to a labelled template
-reply.
+The sidebar chip names the mode in force. Each provider's key lives in
+`sessionStorage` and is gone when the tab closes; a failed upstream falls back to
+a labelled template reply. A settings file from before providers existed is read
+as one provider named after its host, and its single key keeps working.
 
 ## Deploying
 

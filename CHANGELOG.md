@@ -95,6 +95,22 @@ change states its migration at the top of the release it ships in.
   arrow keys (Home / End jump to the limits, Enter goes back to automatic), or
   double-click the handle. The height is stored in `partner.settings.v1` as
   `panelHeight` and is ignored on phones, where the panel stays bottom-anchored.
+- Providers replace the single endpoint. Settings holds up to eight providers,
+  each one a base URL, a protocol, a key, up to eight model names and the
+  thinking levels it accepts; the composer's model menu groups models by
+  provider and the 努力 menu offers only the levels that provider enabled. Keys
+  live per provider in `partner.secrets.v1` (sessionStorage) and are gone when
+  the tab closes; `partner.settings.v1` now stores `providers`,
+  `activeProviderId` and `activeModel`. A settings file from before providers
+  existed is read as one provider named after its host — with its models, direct
+  flag, thinking level and the old single key — so the first request after the
+  update is what the previous version sent.
+- The settings dialog is a two-pane window: a grouped rail (接入 / 应用 / 其他) on
+  the left, a scrolling column on the right, and the rail follows the scroll.
+  On a phone the rail becomes one row of chips. The provider dialog holds the
+  whole supplier — name, protocol, base URL, proxy or direct, key, models and
+  thinking levels — and 验证并保存 sends one ping with the values still on screen
+  before saving; a failed test can still be saved with 仍然保存 or 直接保存.
 
 ### Fixed
 
@@ -113,6 +129,10 @@ change states its migration at the top of the release it ships in.
 - Copy that described unfinished plans is gone: the login page states that the
   demo has no account system, and the settings page no longer shows a lighting
   row that only pointed at the debug drawer.
+- `/api/chat` takes an optional `protocol` and speaks only `openai`: any
+  other value is rejected with 400 before an upstream call, and direct mode
+  stays OpenAI-shaped. The provider dialog's protocol select marks Anthropic
+  Messages as not wired up yet.
 - `/api/chat` accepts content parts (text plus base64 images), an optional
   `reasoningEffort` level, a `probe: true` flag that answers a JSON verdict
   instead of a stream, and raises the request body cap from 512 KB to 2 MB;
