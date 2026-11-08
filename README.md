@@ -8,7 +8,9 @@ floating chat panel and the debug drawer — plus React islands built on
 shadcn/ui and AI Elements: a chat island that streams demo replies, keeps
 local history and tags each reply with an emotion, a settings island at
 `/settings` that holds the endpoint, the session-only key, the mode and the
-panel's appearance, the sidebar and the debug panel. `POST /api/chat` streams
+panel's appearance, the sidebar and the debug panel. The sidebar lists the
+conversations kept on this device (up to 20, 100 messages each): start,
+switch, rename inline, delete, and "新对话" no longer needs a confirmation. `POST /api/chat` streams
 from a user-supplied OpenAI-compatible endpoint through the Vercel AI SDK.
 The character is four 512×512 poses drawn on a 2D canvas: the chat's emotion
 picks the pose, the figure breathes and sways, and it holds each mood for two

@@ -19,6 +19,11 @@ change states its migration at the top of the release it ships in.
   `wrangler.jsonc` exist.
 - An open proposal for the stack, kept with the other working material under
   `.agents/pipelines/` (not part of the repository).
+- Conversations on this device: the sidebar lists up to 20 sessions with a
+  title taken from the first message and when it was last used; a new
+  conversation no longer needs a confirmation, switching keeps each transcript
+  and its mood, renaming is inline, deleting asks first, and the debug drawer
+  logs every session action.
 - A chat island on `/`: demo replies stream token by token, three quick
   actions answer locally, a stop control keeps the partial reply, and history
   persists in this browser (`partner.chat.v1`, 100 messages). Replies are
@@ -58,6 +63,19 @@ change states its migration at the top of the release it ships in.
 
 ### Changed
 
+- Stored history moved from one record to a session index:
+  `partner.sessions.v1` holds `{ activeId, sessions }` and
+  `partner.session.<id>.v1` holds one transcript. An existing
+  `partner.chat.v1` is migrated into a session on the first load and the old
+  key is deleted; a legacy record that only holds the greeting is dropped. No
+  action is needed from the user.
+- "新对话" starts a new conversation instead of offering to wipe the open one,
+  and reuses the open conversation while it has no user message; the sidebar
+  link still works without JavaScript through `/?new=1`. "清空" empties the
+  open conversation but keeps it in the list, while "清空对话历史" in settings
+  removes every conversation and starts a fresh one.
+- The session list loads the chat controller lazily, so the settings page keeps
+  its own bundle.
 - `partner.settings.v1` also stores `panelAlpha` and `motion`. The addition is
   compatible: a record without them loads with the defaults (0.62, system), so
   no migration is needed. The API key still lives only in `sessionStorage`
