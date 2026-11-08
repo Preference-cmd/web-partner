@@ -178,9 +178,15 @@ in `.agents/pipelines/WORKFLOW.md`; the class table is in
   silently targets the top-level Worker, so a staging run can overwrite
   production.
 - `deploy.yml` is manual (`workflow_dispatch`), checks that the app has a
-  wrangler configuration, and then deploys. It needs repository secrets
-  `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. Production deploys are
+  wrangler configuration, and then deploys. It needs the repository secret
+  `CLOUDFLARE_API_TOKEN`; `CLOUDFLARE_ACCOUNT_ID` is optional and only needed
+  when the token can see more than one account. Production deploys are
   deliberate actions, never a side effect of a push.
+- Workflows reference actions by floating major tag (`actions/checkout@v7`,
+  `pnpm/action-setup@v6`, `actions/setup-node@v7`,
+  `cloudflare/wrangler-action@v4`), and Dependabot proposes updates weekly. The
+  deploy action reuses the wrangler `pnpm install` puts in `apps/web` when no
+  `wranglerVersion` is given.
 - `apps/web` has no runtime secret: `/api/chat` forwards the endpoint and key
   the browser sends (bring your own key).
 - `compatibility_date` in `wrangler.jsonc` moves forward in its own commit,

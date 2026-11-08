@@ -1,9 +1,13 @@
 name: Deploy
 
 # Production deploys are deliberate: this workflow only runs when dispatched.
-# It stays inert until an app exists — the guard step fails with the reason
-# instead of deploying an empty workspace. Requires the repository secrets
-# CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID.
+# The guard step fails with the reason when the app has no wrangler
+# configuration, instead of deploying an empty workspace. Requires the
+# repository secret CLOUDFLARE_API_TOKEN; CLOUDFLARE_ACCOUNT_ID is optional and
+# only needed when that token can see more than one account.
+#
+# One Worker is the deploy target; a staging Worker needs `env.staging` in
+# wrangler.jsonc and a build with CLOUDFLARE_ENV set.
 on:
   workflow_dispatch:
     inputs:
@@ -12,29 +16,21 @@ on:
         required: true
         default: web
         type: string
-      environment:
-        description: Cloudflare environment to target
-        required: true
-        default: production
-        type: choice
-        options:
-          - production
-          - staging
 
 permissions:
   contents: read
 
 concurrency:
-  # One deploy per app+environment at a time; a queued deploy waits rather
-  # than being cancelled mid-upload.
-  group: deploy-${{ inputs.app }}-${{ inputs.environment }}
+  # One deploy per app at a time; a queued deploy waits rather than being
+  # cancelled mid-upload.
+  group: deploy-${{ inputs.app }}
   cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    environment: ${{ inputs.environment }}
+    environment: production
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -59,7 +55,8 @@ jobs:
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # The account is derived from the token when it can see exactly one;
+          # add CLOUDFLARE_ACCOUNT_ID only for a token that spans several.
           workingDirectory: apps/${{ inputs.app }}
-          command: deploy --env ${{ inputs.environment }}
+          command: deploy
           packageManager: pnpm

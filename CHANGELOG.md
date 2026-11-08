@@ -63,6 +63,9 @@ change states its migration at the top of the release it ships in.
 
 ### Changed
 
+- The deploy workflow now targets the single `partner-web` Worker and needs
+  only `CLOUDFLARE_API_TOKEN`: the `environment` input and `--env` are gone, and
+  `CLOUDFLARE_ACCOUNT_ID` is optional when the token can see one account.
 - The code is MIT-licensed (`LICENSE`). The character art in
   `apps/web/public/character/` stays outside that grant, under CC BY-NC-SA 4.0;
   `NOTICE.md` states the boundary. No behaviour changes.
