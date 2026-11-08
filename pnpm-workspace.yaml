@@ -11,10 +11,11 @@ packages:
   - apps/*
   - packages/*
 
-# pnpm 10 blocks dependency build scripts unless they are listed here.
-onlyBuiltDependencies:
-  - esbuild
-  - workerd
+# pnpm runs dependency build scripts only for packages allowed here (v11+).
+allowBuilds:
+  esbuild: true
+  workerd: true
+  lefthook: true
 
 # @napi-rs/wasm-runtime accepts runtime 2.0.0-beta, which breaks against
 # @emnapi/core 1.11.3 (astro2tsx used by `astro check`). Pin the stable line.

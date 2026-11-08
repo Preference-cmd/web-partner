@@ -40,7 +40,7 @@ and there is no analytics.
 
 ## Getting started
 
-Node 24 (`.nvmrc`) and pnpm 10.30.3 are required.
+Node 24 (`.nvmrc`) and pnpm 12.18.0 are required.
 
 ```bash
 pnpm install     # dependencies and git hooks
