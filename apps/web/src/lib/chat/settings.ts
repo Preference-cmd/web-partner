@@ -23,6 +23,8 @@ export interface Settings {
   contextTokens: number;
   panelAlpha: number;
   motion: Motion;
+  /** Null keeps the panel content-sized; a number pins the height the user dragged. */
+  panelHeight: number | null;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -35,6 +37,7 @@ export const DEFAULT_SETTINGS: Settings = {
   contextTokens: CONTEXT_DEFAULT,
   panelAlpha: ALPHA_DEFAULT,
   motion: 'system',
+  panelHeight: null,
 };
 
 function parseAlpha(value: unknown): number {
@@ -75,6 +78,10 @@ export function loadSettings(storage: StringStorage | undefined): Settings {
       contextTokens: parseContextTokens(record.contextTokens),
       panelAlpha: parseAlpha(record.panelAlpha),
       motion: parseMotion(record.motion),
+      panelHeight:
+        typeof record.panelHeight === 'number' && Number.isFinite(record.panelHeight)
+          ? Math.round(record.panelHeight)
+          : null,
     };
   } catch {
     return { ...DEFAULT_SETTINGS };

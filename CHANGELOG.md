@@ -62,6 +62,10 @@ change states its migration at the top of the release it ships in.
   log is memory only and a reload starts it empty.
 - A stage bubble: one line above the character, printed by the debug drawer,
   gone after ten seconds, without touching the chat, the model or the mood.
+- The conversation panel can be resized: drag its top edge, nudge it with the
+  arrow keys (Home / End jump to the limits, Enter goes back to automatic), or
+  double-click the handle. The height is stored in `partner.settings.v1` as
+  `panelHeight` and is ignored on phones, where the panel stays bottom-anchored.
 
 ### Fixed
 

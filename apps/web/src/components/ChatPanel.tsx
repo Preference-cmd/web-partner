@@ -1,6 +1,12 @@
 import { cn } from 'cn';
 import { CheckIcon, ChevronDownIcon, CopyIcon } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { useStore } from 'zustand';
 import {
   Conversation,
@@ -40,7 +46,13 @@ import { Button } from '@/components/ui/button';
 import { getChatController } from '@/lib/chat/controller';
 import { QUICK_ACTIONS } from '@/lib/chat/demo';
 import { EMOTION_LABEL } from '@/lib/chat/emotion';
-import { applyAppearance, loadSettings, readApiKey, resolveMode } from '@/lib/chat/settings';
+import {
+  applyAppearance,
+  loadSettings,
+  readApiKey,
+  resolveMode,
+  saveSettings,
+} from '@/lib/chat/settings';
 import type { Message as ChatMessage, ChatMode, Emotion } from '@/lib/chat/types';
 
 /** How much of the figure must stay above the panel before growth stops. */
@@ -50,6 +62,14 @@ const LIFT_CAP = 250;
 /** Below this the panel stops being a conversation. */
 const MIN_PANEL = 220;
 const PANEL_GAP = { narrow: 12, wide: 24 };
+
+function maxPanelHeight(): number {
+  return Math.min(window.innerHeight * 0.72, 720);
+}
+
+function clampPanelHeight(value: number): number {
+  return Math.round(Math.min(maxPanelHeight(), Math.max(MIN_PANEL, value)));
+}
 
 const EMOTION_DOT: Record<Emotion, string> = {
   idle: 'bg-muted-foreground',
@@ -124,8 +144,14 @@ export default function ChatPanel() {
   const [draft, setDraft] = useState('');
   const [collapsed, setCollapsed] = useState(false);
   const [mode, setMode] = useState<ChatMode>('demo');
+  const [manualHeight, setManualHeight] = useState<number | null>(null);
+  const [narrow, setNarrow] = useState(false);
+  const [maxHeight, setMaxHeight] = useState(720);
   const panelRef = useRef<HTMLElement>(null);
   const syncRef = useRef<(() => void) | null>(null);
+  const dragRef = useRef<{ startY: number; startHeight: number } | null>(null);
+  // The sync callback is created once; it reads the pinned height through this ref.
+  const heightRef = useRef<number | null>(null);
 
   useEffect(() => {
     controller.hydrate();
@@ -139,7 +165,28 @@ export default function ChatPanel() {
     const stored = loadSettings(window.localStorage);
     applyAppearance(document.documentElement, stored);
     setMode(resolveMode(stored, readApiKey(window.sessionStorage, window.localStorage)));
+    if (stored.panelHeight !== null) setManualHeight(clampPanelHeight(stored.panelHeight));
+
+    // Resizing the window changes both the phone breakpoint and the tallest the panel may be.
+    const media = window.matchMedia('(max-width: 767px)');
+    const update = (): void => {
+      setNarrow(media.matches);
+      setMaxHeight(maxPanelHeight());
+    };
+    update();
+    media.addEventListener('change', update);
+    window.addEventListener('resize', update);
+    return () => {
+      media.removeEventListener('change', update);
+      window.removeEventListener('resize', update);
+    };
   }, []);
+
+  // A pinned height overrides the content-sized panel; sync() reads it through the ref.
+  useEffect(() => {
+    heightRef.current = narrow ? null : manualHeight;
+    syncRef.current?.();
+  }, [manualHeight, narrow]);
 
   // The list is sized by content until it would pass the panel cap. It needs an explicit
   // height, not a max: stick-to-bottom's scroll area is height:100%, which only scrolls
@@ -170,9 +217,14 @@ export default function ChatPanel() {
         narrow ? 520 : 720,
         Math.max(MIN_PANEL, keepVisible),
       );
+      const pinned = heightRef.current;
       const conversation = node.querySelector<HTMLElement>('[aria-label="对话记录"]');
       const content = conversation?.firstElementChild?.firstElementChild as HTMLElement | null;
-      if (conversation && content) {
+      if (conversation && pinned !== null) {
+        // A pinned panel owns its height; the list simply fills what is left.
+        if (conversation.style.flex !== '1 1 auto') conversation.style.flex = '1 1 auto';
+        if (conversation.style.height !== '') conversation.style.height = '';
+      } else if (conversation && content) {
         let others = 2; // the panel's top and bottom border
         for (const child of node.children) {
           if (child !== conversation) others += (child as HTMLElement).offsetHeight;
@@ -262,6 +314,63 @@ export default function ChatPanel() {
     controller.clear();
   }
 
+  function persistHeight(value: number | null): void {
+    const stored = loadSettings(window.localStorage);
+    saveSettings(window.localStorage, { ...stored, panelHeight: value });
+  }
+
+  /** Pin the panel to a height, or pass null to go back to content-sized. */
+  function applyHeight(value: number | null): void {
+    const next = value === null || narrow ? null : clampPanelHeight(value);
+    setManualHeight(next);
+    heightRef.current = next;
+    persistHeight(next);
+  }
+
+  function startResize(event: ReactPointerEvent<HTMLDivElement>): void {
+    if (event.button !== 0 || !panelRef.current) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = { startY: event.clientY, startHeight: panelRef.current.offsetHeight };
+  }
+
+  function moveResize(event: ReactPointerEvent<HTMLDivElement>): void {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const next = clampPanelHeight(drag.startHeight + (drag.startY - event.clientY));
+    setManualHeight(next);
+    heightRef.current = next;
+  }
+
+  function endResize(event: ReactPointerEvent<HTMLDivElement>): void {
+    if (!dragRef.current) return;
+    dragRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    // Commit once, not on every pointer move.
+    persistHeight(heightRef.current);
+  }
+
+  function onHandleKeyDown(event: ReactKeyboardEvent<HTMLDivElement>): void {
+    const node = panelRef.current;
+    if (!node) return;
+    const base = heightRef.current ?? node.offsetHeight;
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      event.preventDefault();
+      applyHeight(base + (event.key === 'ArrowUp' ? 24 : -24));
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      applyHeight(MIN_PANEL);
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      applyHeight(maxPanelHeight());
+    } else if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      applyHeight(null);
+    }
+  }
+
   return (
     <section
       ref={panelRef}
@@ -269,9 +378,32 @@ export default function ChatPanel() {
       style={{
         backgroundColor:
           'color-mix(in oklab, var(--card) calc(var(--panel-alpha, 0.62) * 100%), transparent)',
+        ...(narrow || manualHeight === null ? {} : { height: `${manualHeight}px` }),
       }}
       className="absolute bottom-3 left-1/2 z-20 flex max-h-[min(52vh,520px)] w-[min(760px,calc(100%-1.5rem))] -translate-x-1/2 flex-col overflow-hidden rounded-xl border text-card-foreground shadow-2xl backdrop-blur-xl md:bottom-6 md:max-h-[min(72vh,720px)] md:w-[min(760px,calc(100%-3rem))]"
     >
+      {narrow || collapsed ? null : (
+        // biome-ignore lint/a11y/useSemanticElements: the handle needs pointer capture and a grip child; an hr cannot hold either.
+        <div
+          role="separator"
+          aria-orientation="horizontal"
+          aria-label="调整对话高度"
+          aria-valuemin={MIN_PANEL}
+          aria-valuemax={maxHeight}
+          aria-valuenow={manualHeight ?? undefined}
+          tabIndex={0}
+          className="group absolute inset-x-0 top-0 z-10 hidden h-3 cursor-ns-resize touch-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:block"
+          onDoubleClick={() => applyHeight(null)}
+          onKeyDown={onHandleKeyDown}
+          onPointerCancel={endResize}
+          onPointerDown={startResize}
+          onPointerMove={moveResize}
+          onPointerUp={endResize}
+        >
+          <span className="absolute top-1 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full bg-border opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
+        </div>
+      )}
+
       {/* Announce the outcome, not every streamed character. */}
       <p className="sr-only" role="status" aria-live="polite">
         {streaming
