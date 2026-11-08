@@ -22,30 +22,14 @@ const { title = "伴侣小生命" } = Astro.props;
     <div class="flex h-dvh overflow-hidden">
       <Sidebar client:load active="chat" />
       <main class="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-        <div
-          class="absolute inset-0 bg-[radial-gradient(900px_620px_at_50%_38%,oklch(0.22_0.02_265),oklch(0.16_0.015_260),oklch(0.13_0.01_255))]"
-        >
-        </div>
-        <div
-          class="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_90%_at_50%_40%,transparent_45%,rgba(0,0,0,0.55)_100%)]"
-        >
-        </div>
-        <div class="pointer-events-none absolute inset-0 overflow-hidden opacity-60">
-          <i
-            class="animate-drift absolute top-[30%] left-[18%] size-[3px] rounded-full bg-sky-300/60 [animation-delay:-2s]"
-          ></i>
-          <i
-            class="animate-drift absolute top-[62%] left-[32%] size-[2px] rounded-full bg-sky-300/50 [animation-delay:-5s]"
-          ></i>
-          <i
-            class="animate-drift absolute top-[26%] left-[64%] size-[3px] rounded-full bg-sky-300/60 [animation-delay:-1s]"
-          ></i>
-          <i
-            class="animate-drift absolute top-[58%] left-[74%] size-[2px] rounded-full bg-sky-300/50 [animation-delay:-4s]"
-          ></i>
-          <i
-            class="animate-drift absolute top-[44%] left-[48%] size-[3px] rounded-full bg-sky-300/30 [animation-delay:-7s]"
-          ></i>
+        <div class="stage-backdrop absolute inset-0"></div>
+        <div class="stage-vignette pointer-events-none absolute inset-0"></div>
+        <div class="stage-dust pointer-events-none absolute inset-0 overflow-hidden opacity-60">
+          <i class="animate-drift absolute top-[30%] left-[18%] size-[3px] rounded-full [animation-delay:-2s]"></i>
+          <i class="animate-drift absolute top-[62%] left-[32%] size-[2px] rounded-full [animation-delay:-5s]"></i>
+          <i class="animate-drift absolute top-[26%] left-[64%] size-[3px] rounded-full [animation-delay:-1s]"></i>
+          <i class="animate-drift absolute top-[58%] left-[74%] size-[2px] rounded-full [animation-delay:-4s]"></i>
+          <i class="animate-drift absolute top-[44%] left-[48%] size-[3px] rounded-full [animation-delay:-7s]"></i>
         </div>
         <h1 class="sr-only">伴侣小生命 · 和角色对话</h1>
         <div

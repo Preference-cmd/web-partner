@@ -99,6 +99,89 @@
   }
 }
 
+/* Stage lighting: four presets, each a set of colours the backdrop, the vignette
+   and the dust read. Registered so a switch fades instead of cutting. */
+@property --stage-bg-1 {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.22 0.02 265);
+}
+@property --stage-bg-2 {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.16 0.015 260);
+}
+@property --stage-bg-3 {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.13 0.01 255);
+}
+@property --stage-vignette {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: rgba(0, 0, 0, 0.55);
+}
+@property --stage-dust {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.82 0.08 230 / 60%);
+}
+
+html {
+  --stage-bg-1: oklch(0.22 0.02 265);
+  --stage-bg-2: oklch(0.16 0.015 260);
+  --stage-bg-3: oklch(0.13 0.01 255);
+  --stage-vignette: rgba(0, 0, 0, 0.55);
+  --stage-dust: oklch(0.82 0.08 230 / 60%);
+  transition:
+    --stage-bg-1 600ms ease,
+    --stage-bg-2 600ms ease,
+    --stage-bg-3 600ms ease,
+    --stage-vignette 600ms ease,
+    --stage-dust 600ms ease;
+}
+
+html[data-light="dusk"] {
+  --stage-bg-1: oklch(0.26 0.04 55);
+  --stage-bg-2: oklch(0.19 0.03 40);
+  --stage-bg-3: oklch(0.15 0.02 30);
+  --stage-vignette: rgba(28, 12, 4, 0.6);
+  --stage-dust: oklch(0.88 0.1 80 / 60%);
+}
+
+html[data-light="deep"] {
+  --stage-bg-1: oklch(0.17 0.006 265);
+  --stage-bg-2: oklch(0.12 0.005 260);
+  --stage-bg-3: oklch(0.08 0.004 255);
+  --stage-vignette: rgba(0, 0, 0, 0.72);
+  --stage-dust: oklch(0.72 0.03 250 / 40%);
+}
+
+html[data-light="dawn"] {
+  --stage-bg-1: oklch(0.29 0.03 200);
+  --stage-bg-2: oklch(0.2 0.02 210);
+  --stage-bg-3: oklch(0.16 0.015 220);
+  --stage-vignette: rgba(4, 16, 24, 0.55);
+  --stage-dust: oklch(0.9 0.06 195 / 65%);
+}
+
+.stage-backdrop {
+  background: radial-gradient(
+    900px 620px at 50% 38%,
+    var(--stage-bg-1),
+    var(--stage-bg-2),
+    var(--stage-bg-3)
+  );
+}
+
+.stage-vignette {
+  background: radial-gradient(120% 90% at 50% 40%, transparent 45%, var(--stage-vignette) 100%);
+}
+
+.stage-dust i {
+  background-color: var(--stage-dust);
+}
+
 /* The stage keeps the figure clear of the panel; the chat island writes --panel-lift. */
 .stage-figure {
   --stage-filter: saturate(1);
@@ -164,6 +247,7 @@ html[data-emotion="sleepy"] .stage-figure {
   }
 }
 
+html[data-motion="reduced"],
 html[data-motion="reduced"] *,
 html[data-motion="reduced"] *::before,
 html[data-motion="reduced"] *::after {
