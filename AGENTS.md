@@ -23,7 +23,7 @@ rendering, a model picker, server-side history, analytics.
 
 ```text
 apps/web/              # Astro app: pages, React islands, Canvas character, Worker entry, wrangler.jsonc
-docs/                  # screenshots referenced by README.md
+docs/                  # the README preview, a screenshot of the deployed app
 scripts/               # repository helpers, run by hooks or a package
 .github/workflows/     # ci.yml (the gate), deploy.yml (manual Workers release)
 .github/dependabot.yml # weekly grouped dependency updates
@@ -165,8 +165,8 @@ and `node .agents/pipelines/verify-proposals.mjs` checks it after a move.
   `README.md`, code, comments and commit messages are English. Working docs
   under `.agents/pipelines/` are Chinese. Match the language of the file you
   are editing.
-- **Docs are product surface.** README screenshots are real screenshots of the
-  deployed app in `docs/`; retake the one a UI change invalidates. A README,
+- **Docs are product surface.** The README preview is a real screenshot of the
+  deployed app in `docs/`; retake it when a UI change invalidates it. A README,
   fact table or CHANGELOG entry that disagrees with the code is a bug.
 - **Secrets.** Nothing secret is committed: no token, account id, `.dev.vars`
   or `.env`. Local values go in `.dev.vars`, production values in the

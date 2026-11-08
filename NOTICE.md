@@ -12,7 +12,7 @@ Preference-cmd）。它覆盖源码、脚本与配置，不覆盖下文的角色
 须署名、注明修改、以相同许可发布。署名与来源见
 `apps/web/public/character/ATTRIBUTION.md`，许可全文见同目录 `LICENSE.txt`。
 
-README 使用的截图（`docs/`）包含上述立绘，同样适用 CC BY-NC-SA 4.0，不得用于商业用途。
+README 的预览截图（`docs/`）包含上述立绘，同样适用 CC BY-NC-SA 4.0，不得用于商业用途。
 
 两种许可互不覆盖：MIT 不授权立绘，CC BY-NC-SA 也不适用于仓库代码。要把这个演示
 用于商业用途，需要替换立绘或另行取得素材授权。
