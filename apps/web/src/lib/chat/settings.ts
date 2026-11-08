@@ -1,4 +1,7 @@
+import { dropKey, readKey, type StringStorage, writeKey } from '../storage';
 import type { ChatMode } from './types';
+
+export type { StringStorage } from '../storage';
 
 export const SETTINGS_KEY = 'partner.settings.v1';
 export const SECRET_KEY = 'partner.secret.v1';
@@ -29,39 +32,6 @@ export const DEFAULT_SETTINGS: Settings = {
   motion: 'system',
 };
 
-export interface StringStorage {
-  getItem: (key: string) => string | null;
-  setItem: (key: string, value: string) => void;
-  removeItem: (key: string) => void;
-}
-
-function read(storage: StringStorage | undefined, key: string): string | null {
-  if (!storage) return null;
-  try {
-    return storage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function write(storage: StringStorage | undefined, key: string, value: string): void {
-  if (!storage) return;
-  try {
-    storage.setItem(key, value);
-  } catch {
-    // Private mode or a full quota: the session keeps working without persistence.
-  }
-}
-
-function drop(storage: StringStorage | undefined, key: string): void {
-  if (!storage) return;
-  try {
-    storage.removeItem(key);
-  } catch {
-    // Nothing to remove.
-  }
-}
-
 function parseAlpha(value: unknown): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return ALPHA_DEFAULT;
   return Math.min(ALPHA_MAX, Math.max(ALPHA_MIN, value));
@@ -72,7 +42,7 @@ function parseMotion(value: unknown): Motion {
 }
 
 export function loadSettings(storage: StringStorage | undefined): Settings {
-  const raw = read(storage, SETTINGS_KEY);
+  const raw = readKey(storage, SETTINGS_KEY);
   if (!raw) return { ...DEFAULT_SETTINGS };
   try {
     const parsed: unknown = JSON.parse(raw);
@@ -93,11 +63,11 @@ export function loadSettings(storage: StringStorage | undefined): Settings {
 }
 
 export function saveSettings(storage: StringStorage | undefined, settings: Settings): void {
-  write(storage, SETTINGS_KEY, JSON.stringify(settings));
+  writeKey(storage, SETTINGS_KEY, JSON.stringify(settings));
 }
 
 export function clearSettings(storage: StringStorage | undefined): void {
-  drop(storage, SETTINGS_KEY);
+  dropKey(storage, SETTINGS_KEY);
 }
 
 /** Key lives in sessionStorage unless "remember" copied it to localStorage. */
@@ -105,25 +75,25 @@ export function readApiKey(
   session: StringStorage | undefined,
   local: StringStorage | undefined,
 ): string {
-  return (read(session, SECRET_KEY) ?? read(local, SECRET_KEY) ?? '').trim();
+  return (readKey(session, SECRET_KEY) ?? readKey(local, SECRET_KEY) ?? '').trim();
 }
 
 /** The page keeps the key in sessionStorage: closing the tab drops it. */
 export function saveApiKey(session: StringStorage | undefined, key: string): void {
   const value = key.trim();
   if (!value) {
-    drop(session, SECRET_KEY);
+    dropKey(session, SECRET_KEY);
     return;
   }
-  write(session, SECRET_KEY, value);
+  writeKey(session, SECRET_KEY, value);
 }
 
 export function clearApiKey(
   session: StringStorage | undefined,
   local: StringStorage | undefined,
 ): void {
-  drop(session, SECRET_KEY);
-  drop(local, SECRET_KEY);
+  dropKey(session, SECRET_KEY);
+  dropKey(local, SECRET_KEY);
 }
 
 export interface ModeStatus {
