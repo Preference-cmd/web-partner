@@ -12,7 +12,11 @@ panel's appearance, the sidebar and the debug panel. `POST /api/chat` streams
 from a user-supplied OpenAI-compatible endpoint through the Vercel AI SDK.
 The character is four 512×512 poses drawn on a 2D canvas: the chat's emotion
 picks the pose, the figure breathes and sways, and it holds each mood for two
-seconds before the next crossfade.
+seconds before the next crossfade. The debug drawer docks on the right and
+reports the turn, the drawn pose, the renderer, FPS and the mode; it keeps the
+last 50 log lines, forces a mood, switches four stage lights and two draw
+modes, and puts a line above the character. Its open state, light and renderer
+persist in `partner.panel.v1`; the log is memory only.
 The stack decision lives in the local proposal under `.agents/pipelines/`,
 which is not part of this repository.
 

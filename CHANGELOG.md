@@ -47,6 +47,14 @@ change states its migration at the top of the release it ships in.
   poses with attribution (`ATTRIBUTION.md`) and the license text beside them,
   plus a root `NOTICE.md` that separates the private code from the
   non-commercial art. The sidebar license line links to the attribution.
+- A debug drawer on `/`: status (turn, character state, mood, drawn pose,
+  renderer, FPS, DPR, mode), the last 50 log lines across seven sources with a
+  clear control, forced moods, four stage lights, a renderer switch and a stage
+  bubble. The mode switch shares `partner.settings.v1` with the settings page;
+  the open state, light and renderer persist in `partner.panel.v1`, while the
+  log is memory only and a reload starts it empty.
+- A stage bubble: one line above the character, printed by the debug drawer,
+  gone after ten seconds, without touching the chat, the model or the mood.
 
 ### Changed
 
@@ -69,6 +77,14 @@ change states its migration at the top of the release it ships in.
   `Cmd/Ctrl+K` or `/` focuses the composer, the scrollable message log is
   focusable and announces reply completion (and interruption) through a polite
   status line, and the closed debug drawer is no longer in the tab order.
+- The stage backdrop, its vignette and the drifting dust follow four lighting
+  presets (`data-light` on the root element). Each colour is a registered
+  custom property, so a preset crossfades in 600 ms instead of cutting.
+- The character renderer takes a kind: `canvas2d` animates and samples FPS,
+  `static` draws one frame and stops the loop. Switching remounts the stage
+  with the mood kept, and the loop publishes `data-pose`, `data-renderer` and
+  a one-second FPS sample for the debug drawer; crossfade, dwell and reduced
+  motion behave as before.
 - Chat copy and actions: the header carries the name, the current mood and
   the mode in force, while each reply is signed with the character name and
   only a fallback is labelled; "新对话" asks before discarding a conversation
