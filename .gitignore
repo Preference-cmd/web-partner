@@ -15,8 +15,10 @@ dist/
 .env.*
 !.env.example
 .envrc
+# The examples are the exception: they document the shape without values.
 .dev.vars
 .dev.vars.*
+!.dev.vars.example
 
 # ----- Test + tooling droppings -----
 coverage/

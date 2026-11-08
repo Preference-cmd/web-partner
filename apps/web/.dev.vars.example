@@ -1,0 +1,6 @@
+# Local values for the Cloudflare runtime, read by `astro dev` and
+# `wrangler dev`. Copy this file to `.dev.vars` when the Worker needs a
+# secret or a var.
+#
+# Nothing is required today: `/api/chat` takes the endpoint and the key from
+# the browser, so the Worker has no runtime secret.
