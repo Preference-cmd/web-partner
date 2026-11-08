@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { OPEN_SETTINGS_EVENT } from '@/lib/ui/open-settings';
 import SettingsPanel from './SettingsPanel';
@@ -10,9 +10,15 @@ function initiallyOpen(): boolean {
 
 export default function SettingsDialog() {
   const [open, setOpen] = useState(initiallyOpen);
+  // Radix can only restore focus to a trigger; this dialog is opened by state.
+  const openerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    const openDialog = () => setOpen(true);
+    const openDialog = () => {
+      const active = document.activeElement;
+      openerRef.current = active instanceof HTMLElement ? active : null;
+      setOpen(true);
+    };
     window.addEventListener(OPEN_SETTINGS_EVENT, openDialog);
     return () => window.removeEventListener(OPEN_SETTINGS_EVENT, openDialog);
   }, []);
@@ -29,14 +35,23 @@ export default function SettingsDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="flex max-h-[85vh] w-[min(calc(100vw-2rem),72rem)] max-w-none flex-col gap-0 overflow-hidden p-0">
-        <header className="flex flex-col gap-1 border-b px-6 py-4 pr-14">
+      <DialogContent
+        className="flex max-h-[92vh] w-[min(calc(100vw-2rem),72rem)] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-h-[85vh]"
+        onCloseAutoFocus={(event) => {
+          const opener = openerRef.current;
+          if (!opener?.isConnected) return;
+          event.preventDefault();
+          opener.focus();
+        }}
+      >
+        <header className="flex flex-col gap-1 border-b px-4 py-3 pr-14 sm:px-6">
           <DialogTitle className="text-base font-semibold">设置</DialogTitle>
           <DialogDescription>
-            连接、模型调用、模式与外观都存在这台设备。API key 只留在当前标签页，关掉就没了。
+            接入你的模型分三步：连接、测试、模式与外观。改完即保存；API key
+            只留在当前标签页，关掉就没了。
           </DialogDescription>
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">
           <SettingsPanel />
         </div>
       </DialogContent>

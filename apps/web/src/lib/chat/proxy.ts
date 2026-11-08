@@ -16,6 +16,9 @@ import {
 
 export const CONNECT_TIMEOUT_MS = 8000;
 export const IDLE_TIMEOUT_MS = 30 * 1000;
+/** A connection test is one short turn, not a conversation. */
+const PROBE_TIMEOUT_MS = 15 * 1000;
+const PROBE_MAX_TOKENS = 8;
 
 const encoder = new TextEncoder();
 
@@ -29,12 +32,66 @@ interface ChatBody {
   maxOutputTokens: number;
   /** Null sends no field at all; a non-reasoning model rejects an unknown one. */
   reasoningEffort: ReasoningEffort | null;
+  /** Ask for one non-streaming turn and report reachability instead of text. */
+  probe: boolean;
 }
 
 function fail(status: number, error: string): Response {
   return new Response(JSON.stringify({ error }), {
     status,
     headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
+  });
+}
+
+interface ProbeReply {
+  outcome: 'ok' | 'unreachable' | 'unauthorized';
+  reason: string;
+}
+
+function reply(value: ProbeReply): Response {
+  return new Response(JSON.stringify(value), {
+    status: 200,
+    headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
+  });
+}
+
+/**
+ * One non-streaming turn, kept out of the chat path: the settings panel asks
+ * whether the endpoint, key and model actually answer, and nothing else.
+ */
+async function probeUpstream(body: ChatBody, signal: AbortSignal): Promise<Response> {
+  let response: Response;
+  try {
+    response = await fetch(`${body.endpoint}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${body.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: body.model,
+        messages: body.messages,
+        max_tokens: PROBE_MAX_TOKENS,
+        temperature: 0,
+        stream: false,
+      }),
+      signal: AbortSignal.any([signal, AbortSignal.timeout(PROBE_TIMEOUT_MS)]),
+    });
+  } catch {
+    return reply({ outcome: 'unreachable', reason: '连不上端点：检查 base URL、网络与端点可用性' });
+  }
+  if (response.ok) {
+    return reply({ outcome: 'ok', reason: `端点应答 HTTP ${response.status}` });
+  }
+  if (response.status === 401 || response.status === 403) {
+    return reply({
+      outcome: 'unauthorized',
+      reason: `key 或权限被拒绝（HTTP ${response.status}）`,
+    });
+  }
+  return reply({
+    outcome: 'unreachable',
+    reason: `端点返回 HTTP ${response.status}：先确认 base URL、模型名与账号额度`,
   });
 }
 
@@ -190,6 +247,7 @@ function readBody(raw: unknown): ChatBody | string {
     messages,
     maxOutputTokens,
     reasoningEffort,
+    probe: record.probe === true,
   };
 }
 
@@ -228,6 +286,8 @@ export async function handleChat(request: Request): Promise<Response> {
 
   const body = readBody(parsed);
   if (typeof body === 'string') return fail(400, body);
+
+  if (body.probe) return probeUpstream(body, request.signal);
 
   const system = body.messages
     .filter((message) => message.role === 'system')

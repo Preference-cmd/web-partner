@@ -30,10 +30,10 @@ key stay in the browser.
 - **Twenty conversations on this device.** Up to 20 sessions of 100 messages are
   kept in the browser, with switch, inline rename, delete and a one-time
   migration from `partner.chat.v1`.
-- **Settings and a debug drawer.** A settings dialog over the chat holds the
-  connection, the model call (output budget, context window and thinking
-  intensity), mode and appearance, while the drawer exposes the pose, FPS, log
-  lines, forced moods and stage lighting.
+- **Settings that walk you through it.** The dialog is three steps — 连接,
+  测试连接, 模式与外观 — with the model-call numbers, data and about under 更多.
+  The connection test sends one ping and names what failed, while the drawer
+  exposes the pose, FPS, log lines, forced moods and stage lighting.
 - **Details that matter.** `Cmd/Ctrl+K` or `/` focuses the composer,
   destructive actions ask in dialogs, and the layout becomes sheets on phones.
 
@@ -59,14 +59,18 @@ pnpm check       # lint, typecheck, test, build
 
 ## Bring your own model
 
-1. Open the settings dialog: sidebar → 设置, or `/?settings=1`.
-2. Enter the base URL without `/chat/completions`, the model name and the key.
-3. Switch the mode to 实时; use 直连端点 for a local `http` endpoint or one that
-   does not allow CORS.
-4. Optionally save model presets (up to eight) and pick a 思考强度 level; the
-   composer menus then switch model and effort without opening settings. The
-   output budget stays a separate number: a reasoning model spends it while it
-   thinks, so raise it when answers stop mid-sentence.
+1. Open the settings dialog: sidebar → 设置, or `/?settings=1`. Each step has
+   its own link, so `/?settings=1#test` opens the test directly.
+2. Step 1, 连接: enter the base URL without `/chat/completions`, the model name
+   and the key; turn on 直连端点 for a local `http` endpoint or one that does not
+   allow CORS.
+3. Step 2, 测试连接: one ping through the same path the chat uses. It reports 通过,
+   key 被拒, 端点不可达 or what is still missing, without saving anything.
+4. Step 3, 模式与外观: switch to 实时 and set opacity and motion. Under 更多 sit the
+   output budget, context window, thinking intensity, model presets, data and
+   about; the composer menus then switch model and effort without opening
+   settings. The output budget stays a separate number: a reasoning model spends
+   it while it thinks, so raise it when answers stop mid-sentence.
 
 The sidebar chip names the mode in force. The key lives in `sessionStorage` and
 is gone when the tab closes; a failed upstream falls back to a labelled template

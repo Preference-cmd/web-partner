@@ -123,6 +123,37 @@ describe('chat proxy', () => {
     expect((await handleChat(makeRequest({ ...baseBody, reasoningEffort: 3 }))).status).toBe(400);
   });
 
+  it('answers a probe with the upstream status, not a stream', async () => {
+    const fetchMock = vi.fn(async () => new Response('{"error":"nope"}', { status: 401 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const rejected = await handleChat(makeRequest({ ...baseBody, probe: true }));
+    expect(rejected.status).toBe(200);
+    expect(rejected.headers.get('content-type')).toContain('application/json');
+    expect(await rejected.json()).toEqual({
+      outcome: 'unauthorized',
+      reason: 'key 或权限被拒绝（HTTP 401）',
+    });
+
+    const call = fetchMock.mock.calls[0] as unknown as FetchCall;
+    expect(call[0]).toBe('https://api.example.com/v1/chat/completions');
+    const body = JSON.parse(String(call[1].body)) as Record<string, unknown>;
+    expect(body.stream).toBe(false);
+    expect(body.max_tokens).toBe(8);
+    expect(body.model).toBe('demo-model');
+  });
+
+  it('reports an upstream that will not answer', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Promise.reject(new TypeError('connection refused'))),
+    );
+    expect(await (await handleChat(makeRequest({ ...baseBody, probe: true }))).json()).toEqual({
+      outcome: 'unreachable',
+      reason: '连不上端点：检查 base URL、网络与端点可用性',
+    });
+  });
+
   it('rejects a cross-origin request before calling upstream', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);

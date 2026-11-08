@@ -77,6 +77,9 @@ change states its migration at the top of the release it ships in.
   token budget: it is migrated on read, the number moves to the output budget
   and the effort starts at 关, so the first request after an update is
   byte-for-byte what the previous version sent.
+- A connection test in settings: one minimal non-streaming turn through the
+  same path the chat uses, answered as 通过 / key 被拒 / 端点不可达 / 未填完 with a
+  reason. It writes nothing, retries nothing and never logs the key.
 - The conversation panel can be resized: drag its top edge, nudge it with the
   arrow keys (Home / End jump to the limits, Enter goes back to automatic), or
   double-click the handle. The height is stored in `partner.settings.v1` as
@@ -100,12 +103,19 @@ change states its migration at the top of the release it ships in.
   demo has no account system, and the settings page no longer shows a lighting
   row that only pointed at the debug drawer.
 - `/api/chat` accepts content parts (text plus base64 images), an optional
-  `reasoningEffort` level, and raises the request body cap from 512 KB to 2 MB;
+  `reasoningEffort` level, a `probe: true` flag that answers a JSON verdict
+  instead of a stream, and raises the request body cap from 512 KB to 2 MB;
   a text part keeps the 2 KB limit, an image must be a base64 data URL of a
   supported type and at most 1 MB.
 - The composer follows the shadcn Prompt Input shape: one rounded input
   group, a p-3 text area, pill-shaped controls and an ArrowUp send button.
   Exports keep their names, so the chat panel only changes how it composes them.
+- Settings reads as a three-step path — 连接, 测试连接, 模式与外观 — with the
+  model-call numbers, model presets, data and about under 更多. Each step keeps a
+  link (`?settings=1#test`), the nav marks the current step with `aria-current`,
+  fields confirm with an inline 已保存, and the close button, switches and slider
+  thumb now answer to a 44px target while Esc returns focus to the button that
+  opened the dialog.
 - Settings is a dialog now: the sidebar 设置 button and the debug drawer open
   it over the chat with a blurred backdrop, without leaving the conversation,
   and Esc, the close button or the backdrop dismiss it. `/settings` stays as a
