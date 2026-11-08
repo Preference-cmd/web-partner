@@ -10,7 +10,7 @@ import {
   SlidersHorizontalIcon,
   Trash2Icon,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -375,21 +375,47 @@ export default function SettingsPanel() {
   const [pendingDelete, setPendingDelete] = useState<Provider | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
+  /** Scroll the column to one section and keep the hash shareable. */
+  const go = useCallback((next: SectionId): void => {
+    setSection(next);
+    const node = scrollRef.current?.querySelector<HTMLElement>(`#settings-${next}`);
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    node?.scrollIntoView({ block: 'start', behavior: reduced ? 'auto' : 'smooth' });
+    window.history.replaceState(window.history.state, '', `#${next}`);
+  }, []);
+
   useEffect(() => {
     const stored = loadSettings(window.localStorage);
     setSettings(stored);
     applyAppearance(document.documentElement, stored);
     setLightState(loadPanelPrefs(window.localStorage).light);
     const fromHash = HASH_SECTIONS[window.location.hash.slice(1)];
-    if (fromHash) setSection(fromHash);
+    if (fromHash) {
+      setSection(fromHash);
+      // The dialog mounts with the hash already in the URL; land on that section.
+      window.requestAnimationFrame(() => {
+        scrollRef.current
+          ?.querySelector<HTMLElement>(`#settings-${fromHash}`)
+          ?.scrollIntoView({ block: 'start', behavior: 'auto' });
+      });
+    }
     // The debug drawer can change the light while this dialog is open.
     const sync = (event: Event): void => {
       const detail = (event as CustomEvent<{ light?: LightTheme }>).detail;
       if (detail?.light) setLightState(detail.light);
     };
+    // A hash link can arrive while the dialog is already open.
+    const onHash = (): void => {
+      const next = HASH_SECTIONS[window.location.hash.slice(1)];
+      if (next) go(next);
+    };
     window.addEventListener(LIGHT_EVENT, sync);
-    return () => window.removeEventListener(LIGHT_EVENT, sync);
-  }, []);
+    window.addEventListener('hashchange', onHash);
+    return () => {
+      window.removeEventListener(LIGHT_EVENT, sync);
+      window.removeEventListener('hashchange', onHash);
+    };
+  }, [go]);
 
   // The nav follows the scroll, so a long section list still says where you are.
   useEffect(() => {
@@ -404,6 +430,9 @@ export default function SettingsPanel() {
         const node = root.querySelector<HTMLElement>(`#settings-${id}`);
         if (node && node.getBoundingClientRect().top <= top) current = id;
       }
+      // The last section cannot always reach the top; the end of the scroll is it.
+      const atEnd = root.scrollTop + root.clientHeight >= root.scrollHeight - 8;
+      if (atEnd) current = SECTIONS[SECTIONS.length - 1]?.id ?? current;
       setSection(current);
     };
     const onScroll = (): void => {
@@ -429,14 +458,6 @@ export default function SettingsPanel() {
     applyAppearance(document.documentElement, next);
     syncChip(next);
     announceSettings();
-  }
-
-  function go(next: SectionId): void {
-    setSection(next);
-    const node = scrollRef.current?.querySelector<HTMLElement>(`#settings-${next}`);
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    node?.scrollIntoView({ block: 'start', behavior: reduced ? 'auto' : 'smooth' });
-    window.history.replaceState(window.history.state, '', '#' + next);
   }
 
   function openEditor(provider: Provider | null): void {
