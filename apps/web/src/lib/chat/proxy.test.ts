@@ -144,16 +144,16 @@ describe('chat proxy', () => {
   });
 
   it('rejects a body over the size cap', async () => {
-    const messages = Array.from({ length: 50 }, () => ({
+    const messages = Array.from({ length: 200 }, () => ({
       role: 'user',
       content: '啊'.repeat(1000),
     }));
     const response = await handleChat(makeRequest({ ...baseBody, messages }));
     expect(response.status).toBe(413);
-    expect(MAX_BODY_BYTES).toBe(128 * 1024);
+    expect(MAX_BODY_BYTES).toBe(512 * 1024);
   });
 
-  it('accepts a full window of 51 messages', async () => {
+  it('accepts a full window of 201 messages', async () => {
     const fetchMock = vi.fn(
       async () =>
         new Response(sseChunks(), {
@@ -164,7 +164,7 @@ describe('chat proxy', () => {
     vi.stubGlobal('fetch', fetchMock);
     const messages = [
       { role: 'system', content: '系统' },
-      ...Array.from({ length: 50 }, () => ({ role: 'user', content: '在' })),
+      ...Array.from({ length: 200 }, () => ({ role: 'user', content: '在' })),
     ];
     const response = await handleChat(makeRequest({ ...baseBody, messages }));
     expect(response.status).toBe(200);
@@ -172,7 +172,7 @@ describe('chat proxy', () => {
   });
 
   it('rejects too many messages, oversized text and missing fields', async () => {
-    const tooMany = Array.from({ length: 52 }, () => ({ role: 'user', content: '在' }));
+    const tooMany = Array.from({ length: 202 }, () => ({ role: 'user', content: '在' }));
     expect((await handleChat(makeRequest({ ...baseBody, messages: tooMany }))).status).toBe(400);
     expect(
       (

@@ -2,7 +2,12 @@ import { createStore, type StoreApi } from 'zustand/vanilla';
 import { type LogSource, pushLog } from '../debug/log';
 import { GREETING, pickDemoReply } from './demo';
 import { EMOTION_LABEL, judgeEmotion } from './emotion';
-import { CONTEXT_DEFAULT } from './llm';
+import {
+  CONTEXT_DEFAULT,
+  estimateTokens,
+  MAX_CONTEXT_MESSAGES,
+  MESSAGE_OVERHEAD_TOKENS,
+} from './llm';
 import { createStreamParser } from './parser';
 import {
   createSessionStorage,
@@ -102,19 +107,31 @@ function defaultSleep(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
-/** The latest turns, within the configured window. */
-export function selectContext(messages: readonly Message[], limit = CONTEXT_DEFAULT): Message[] {
-  const usable = messages.filter((message) => message.content.trim().length > 0);
-  return usable.slice(-limit);
+/** The latest turns whose estimated tokens fit the window; the newest always goes in. */
+export function selectContext(messages: readonly Message[], budget = CONTEXT_DEFAULT): Message[] {
+  const usable = messages
+    .filter((message) => message.content.trim().length > 0)
+    .slice(-MAX_CONTEXT_MESSAGES);
+  const selected: Message[] = [];
+  let total = 0;
+  for (let index = usable.length - 1; index >= 0; index -= 1) {
+    const message = usable[index];
+    if (!message) continue;
+    const cost = estimateTokens(message.content) + MESSAGE_OVERHEAD_TOKENS;
+    if (selected.length > 0 && total + cost > budget) break;
+    selected.unshift(message);
+    total += cost;
+  }
+  return selected;
 }
 
 export function buildModelMessages(
   history: readonly Message[],
-  contextMessages = CONTEXT_DEFAULT,
+  contextTokens = CONTEXT_DEFAULT,
 ): ModelMessage[] {
   return [
     { role: 'system', content: SYSTEM_PROMPT },
-    ...selectContext(history, contextMessages).map((message) => ({
+    ...selectContext(history, contextTokens).map((message) => ({
       role: message.role,
       content: message.content,
     })),
@@ -405,7 +422,7 @@ export function createChatController(deps: ChatControllerDeps = {}): ChatControl
       endpoint: config.settings.endpoint,
       apiKey: config.apiKey,
       model: config.settings.model,
-      messages: buildModelMessages(history, config.settings.contextMessages),
+      messages: buildModelMessages(history, config.settings.contextTokens),
       maxOutputTokens: config.settings.maxOutputTokens,
       direct: config.settings.direct,
     };

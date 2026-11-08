@@ -6,8 +6,9 @@ import "../styles/global.css";
 interface Props {
   title: string;
   active?: "chat" | "settings";
+  wide?: boolean;
 }
-const { title, active = "settings" } = Astro.props;
+const { title, active = "settings", wide = false } = Astro.props;
 ---
 
 <!doctype html>
@@ -22,7 +23,9 @@ const { title, active = "settings" } = Astro.props;
     <div class="flex h-dvh overflow-hidden">
       <Sidebar client:load active={active} />
       <main class="min-w-0 flex-1 overflow-y-auto">
-        <div class="mx-auto w-full max-w-2xl px-5 pt-16 pb-16 md:px-8 md:pt-10">
+        <div
+          class={`mx-auto w-full px-5 pt-16 pb-16 md:px-8 md:pt-10 ${wide ? "max-w-5xl" : "max-w-2xl"}`}
+        >
           <slot />
         </div>
       </main>

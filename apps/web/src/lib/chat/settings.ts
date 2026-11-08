@@ -1,5 +1,5 @@
 import { dropKey, readKey, type StringStorage, writeKey } from '../storage';
-import { CONTEXT_DEFAULT, clampContextMessages, clampOutputTokens, OUTPUT_DEFAULT } from './llm';
+import { CONTEXT_DEFAULT, clampContextTokens, clampOutputTokens, OUTPUT_DEFAULT } from './llm';
 import type { ChatMode } from './types';
 
 export type { StringStorage } from '../storage';
@@ -20,7 +20,7 @@ export interface Settings {
   forceDemo: boolean;
   direct: boolean;
   maxOutputTokens: number;
-  contextMessages: number;
+  contextTokens: number;
   panelAlpha: number;
   motion: Motion;
 }
@@ -32,7 +32,7 @@ export const DEFAULT_SETTINGS: Settings = {
   forceDemo: false,
   direct: false,
   maxOutputTokens: OUTPUT_DEFAULT,
-  contextMessages: CONTEXT_DEFAULT,
+  contextTokens: CONTEXT_DEFAULT,
   panelAlpha: ALPHA_DEFAULT,
   motion: 'system',
 };
@@ -52,9 +52,9 @@ function parseOutputTokens(value: unknown): number {
     : OUTPUT_DEFAULT;
 }
 
-function parseContextMessages(value: unknown): number {
+function parseContextTokens(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value)
-    ? clampContextMessages(value)
+    ? clampContextTokens(value)
     : CONTEXT_DEFAULT;
 }
 
@@ -72,7 +72,7 @@ export function loadSettings(storage: StringStorage | undefined): Settings {
       forceDemo: record.forceDemo === true,
       direct: record.direct === true,
       maxOutputTokens: parseOutputTokens(record.maxOutputTokens),
-      contextMessages: parseContextMessages(record.contextMessages),
+      contextTokens: parseContextTokens(record.contextTokens),
       panelAlpha: parseAlpha(record.panelAlpha),
       motion: parseMotion(record.motion),
     };

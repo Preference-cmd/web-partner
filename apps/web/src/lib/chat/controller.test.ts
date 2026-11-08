@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { type ChatLog, createChatController, SYSTEM_PROMPT } from './controller';
 import { DEMO_POOL, GREETING } from './demo';
+import { estimateTokens, MESSAGE_OVERHEAD_TOKENS } from './llm';
 import {
   createSessionStorage,
   DEFAULT_TITLE,
@@ -164,12 +165,12 @@ describe('chat controller', () => {
     expect(run.entries.at(-1)?.source).toBe('model');
   });
 
-  it('drops the oldest turns once the context window is full', async () => {
+  it('drops the oldest turns once the token window is full', async () => {
     const stored: Message[] = Array.from({ length: 21 }, (_, index) =>
-      message('h' + index, index % 2 === 0 ? 'user' : 'assistant', '历史' + index),
+      message('h' + index, index % 2 === 0 ? 'user' : 'assistant', 'x'.repeat(400)),
     );
     const run = makeHarness({
-      settings: liveSettings,
+      settings: { ...liveSettings, contextTokens: 1000 },
       apiKey: 'sk-test',
       stored: { messages: stored, pendingId: null },
     });
@@ -178,17 +179,22 @@ describe('chat controller', () => {
     await run.controller.settled();
     const request = run.requests[0];
     const body = request?.messages.slice(1) ?? [];
-    expect(body).toHaveLength(20);
-    expect(body[0]?.content).toBe('历史2');
+    const total = body.reduce(
+      (sum, item) => sum + estimateTokens(item.content) + MESSAGE_OVERHEAD_TOKENS,
+      0,
+    );
+    expect(body.length).toBeGreaterThan(1);
+    expect(body.length).toBeLessThan(21);
+    expect(total).toBeLessThanOrEqual(1000);
     expect(body.at(-1)).toEqual({ role: 'user', content: '最新' });
   });
 
-  it('sends the configured window and output budget', async () => {
-    const stored: Message[] = Array.from({ length: 45 }, (_, index) =>
-      message('w' + index, index % 2 === 0 ? 'user' : 'assistant', '旧' + index),
+  it('sends the configured token window and output budget', async () => {
+    const stored: Message[] = Array.from({ length: 40 }, (_, index) =>
+      message('w' + index, index % 2 === 0 ? 'user' : 'assistant', '旧'.repeat(60) + index),
     );
     const run = makeHarness({
-      settings: { ...liveSettings, maxOutputTokens: 2048, contextMessages: 40 },
+      settings: { ...liveSettings, maxOutputTokens: 2048, contextTokens: 120 },
       apiKey: 'sk-test',
       stored: { messages: stored, pendingId: null },
     });
@@ -197,9 +203,14 @@ describe('chat controller', () => {
     await run.controller.settled();
     const request = run.requests[0];
     const body = request?.messages.slice(1) ?? [];
+    const total = body.reduce(
+      (sum, item) => sum + estimateTokens(item.content) + MESSAGE_OVERHEAD_TOKENS,
+      0,
+    );
     expect(request?.maxOutputTokens).toBe(2048);
-    expect(body).toHaveLength(40);
-    expect(body[0]?.content).toBe('旧6');
+    expect(total).toBeLessThanOrEqual(120);
+    expect(body.length).toBeGreaterThan(1);
+    expect(body.length).toBeLessThan(40);
     expect(body.at(-1)).toEqual({ role: 'user', content: '新的' });
   });
 

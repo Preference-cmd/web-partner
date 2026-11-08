@@ -87,10 +87,10 @@ describe('settings', () => {
     expect(stored({ maxOutputTokens: 1 }).maxOutputTokens).toBe(OUTPUT_MIN);
     expect(stored({ maxOutputTokens: 99999 }).maxOutputTokens).toBe(OUTPUT_MAX);
     expect(stored({ maxOutputTokens: 'big' }).maxOutputTokens).toBe(OUTPUT_DEFAULT);
-    expect(stored({ contextMessages: 30 }).contextMessages).toBe(30);
-    expect(stored({ contextMessages: 0 }).contextMessages).toBe(CONTEXT_MIN);
-    expect(stored({ contextMessages: 99 }).contextMessages).toBe(CONTEXT_MAX);
-    expect(stored({ contextMessages: null }).contextMessages).toBe(CONTEXT_DEFAULT);
+    expect(stored({ contextTokens: 8000 }).contextTokens).toBe(8000);
+    expect(stored({ contextTokens: 0 }).contextTokens).toBe(CONTEXT_MIN);
+    expect(stored({ contextTokens: 99999 }).contextTokens).toBe(CONTEXT_MAX);
+    expect(stored({ contextTokens: null }).contextTokens).toBe(CONTEXT_DEFAULT);
   });
 
   it('only accepts a known motion value', () => {
@@ -113,10 +113,11 @@ describe('settings', () => {
       direct: false,
       panelAlpha: 0.7,
       motion: 'reduced',
+      contextMessages: 20,
     };
     const loaded = loadSettings(memoryStorage({ [SETTINGS_KEY]: JSON.stringify(older) }));
     expect(loaded.maxOutputTokens).toBe(OUTPUT_DEFAULT);
-    expect(loaded.contextMessages).toBe(CONTEXT_DEFAULT);
+    expect(loaded.contextTokens).toBe(CONTEXT_DEFAULT);
     expect(loaded.panelAlpha).toBe(0.7);
   });
 
