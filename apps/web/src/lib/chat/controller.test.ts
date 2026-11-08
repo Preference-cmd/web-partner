@@ -183,6 +183,26 @@ describe('chat controller', () => {
     expect(body.at(-1)).toEqual({ role: 'user', content: '最新' });
   });
 
+  it('sends the configured window and output budget', async () => {
+    const stored: Message[] = Array.from({ length: 45 }, (_, index) =>
+      message('w' + index, index % 2 === 0 ? 'user' : 'assistant', '旧' + index),
+    );
+    const run = makeHarness({
+      settings: { ...liveSettings, maxOutputTokens: 2048, contextMessages: 40 },
+      apiKey: 'sk-test',
+      stored: { messages: stored, pendingId: null },
+    });
+    run.controller.hydrate();
+    run.controller.send('新的');
+    await run.controller.settled();
+    const request = run.requests[0];
+    const body = request?.messages.slice(1) ?? [];
+    expect(request?.maxOutputTokens).toBe(2048);
+    expect(body).toHaveLength(40);
+    expect(body[0]?.content).toBe('旧6');
+    expect(body.at(-1)).toEqual({ role: 'user', content: '新的' });
+  });
+
   it('persists at the start and the end of a turn, not per token', async () => {
     const run = makeHarness({ settings: liveSettings, apiKey: 'sk-test' });
     run.controller.hydrate();

@@ -7,7 +7,7 @@ function message(index: number, content = 'm' + index): Message {
 }
 
 describe('context window', () => {
-  it('keeps the latest twenty messages', () => {
+  it('keeps the latest twenty messages by default', () => {
     const messages = Array.from({ length: 25 }, (_, index) => message(index));
     const context = selectContext(messages);
     expect(context).toHaveLength(20);
@@ -15,18 +15,15 @@ describe('context window', () => {
     expect(context.at(-1)?.content).toBe('m24');
   });
 
-  it('trims the oldest messages over the character budget', () => {
-    const messages = Array.from({ length: 20 }, (_, index) => message(index, 'x'.repeat(400)));
-    const context = selectContext(messages);
-    expect(context).toHaveLength(15);
-    expect(context.at(-1)?.content).toHaveLength(400);
-  });
-
-  it('keeps the newest message even when it alone exceeds the budget', () => {
-    const messages = [message(0, 'x'.repeat(7000)), message(1, 'y'.repeat(100))];
-    const context = selectContext(messages);
-    expect(context).toHaveLength(1);
-    expect(context[0]?.content).toHaveLength(100);
+  it('honours a smaller or larger window', () => {
+    const messages = Array.from({ length: 60 }, (_, index) => message(index));
+    expect(selectContext(messages, 4).map((item) => item.content)).toEqual([
+      'm56',
+      'm57',
+      'm58',
+      'm59',
+    ]);
+    expect(selectContext(messages, 50)).toHaveLength(50);
   });
 
   it('skips empty messages', () => {
@@ -34,13 +31,11 @@ describe('context window', () => {
     expect(selectContext(messages).map((item) => item.content)).toEqual(['在。']);
   });
 
-  it('prepends the system prompt', () => {
-    const messages = [message(0), message(1)];
-    const model = buildModelMessages(messages);
+  it('prepends the system prompt within the window', () => {
+    const messages = Array.from({ length: 6 }, (_, index) => message(index));
+    const model = buildModelMessages(messages, 4);
+    expect(model).toHaveLength(5);
     expect(model[0]).toEqual({ role: 'system', content: SYSTEM_PROMPT });
-    expect(model.slice(1)).toEqual([
-      { role: 'user', content: 'm0' },
-      { role: 'assistant', content: 'm1' },
-    ]);
+    expect(model.slice(1).map((item) => item.content)).toEqual(['m2', 'm3', 'm4', 'm5']);
   });
 });

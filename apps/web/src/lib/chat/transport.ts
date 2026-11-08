@@ -1,3 +1,4 @@
+import { TEMPERATURE } from './llm';
 import { readSse, readText } from './sse';
 import type { ModelMessage } from './types';
 
@@ -6,6 +7,7 @@ export interface ChatRequest {
   apiKey: string;
   model: string;
   messages: ModelMessage[];
+  maxOutputTokens: number;
   direct: boolean;
 }
 
@@ -14,9 +16,6 @@ export type StreamTransport = (
   signal: AbortSignal,
   onDelta: (text: string) => void,
 ) => Promise<void>;
-
-export const TEMPERATURE = 0.7;
-export const MAX_TOKENS = 120;
 
 function trimSlash(value: string): string {
   return value.replace(/\/+$/u, '');
@@ -40,7 +39,7 @@ export const streamChat: StreamTransport = async (request, signal, onDelta) => {
         messages: request.messages,
         stream: true,
         temperature: TEMPERATURE,
-        max_tokens: MAX_TOKENS,
+        max_tokens: request.maxOutputTokens,
       }),
       signal,
     });
@@ -58,6 +57,7 @@ export const streamChat: StreamTransport = async (request, signal, onDelta) => {
       apiKey: request.apiKey,
       model: request.model,
       messages: request.messages,
+      maxOutputTokens: request.maxOutputTokens,
     }),
     signal,
   });

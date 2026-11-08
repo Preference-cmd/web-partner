@@ -34,15 +34,16 @@ change states its migration at the top of the release it ships in.
 - `POST /api/chat`: streams a reply from a user-supplied OpenAI-compatible
   https endpoint through the Vercel AI SDK. The route rejects non-https, IP
   literal, `localhost`, `.local` and `.internal` targets, cross-origin
-  callers, bodies over 32 KB and turns over 21 messages; it never logs the key.
+  callers, bodies over 128 KB and turns over 51 messages; it never logs the key.
   The browser receives a plain text chunk stream, and an upstream failure that
   arrives as an empty stream falls back to a template.
 - A settings island on `/settings`: connection (endpoint, model, key, direct
-  toggle), mode (demo / live / forced demo, with the reason the current one is
-  in force), appearance (panel opacity 0.4–0.9, motion preference), per-item
-  data clearing and an about block. Every change saves as it is made, the
-  sidebar mode chip follows it, and the chat page picks it up on the next
-  message.
+  toggle), model call (output budget 64–4096 tokens, default 1024; context
+  window 4–50 messages, default 20), mode (demo / live / forced demo, with the
+  reason the current one is in force), appearance (panel opacity 0.4–0.9,
+  motion preference), per-item data clearing and an about block. Every change
+  saves as it is made, the sidebar mode chip follows it, and the chat page
+  picks it up on the next message.
 - A character on the stage: four 512×512 poses (idle / happy / shy / sleepy)
   drawn on a Canvas 2D canvas. The chat's emotion picks the pose, the figure
   breathes in 28 slices, sways 0.6° around its feet, holds each mood for two
@@ -89,6 +90,12 @@ change states its migration at the top of the release it ships in.
   compatible: a record without them loads with the defaults (0.62, system), so
   no migration is needed. The API key still lives only in `sessionStorage`
   (`partner.secret.v1`).
+- The LLM call is parameterised instead of hard-coded: the reply budget
+  (`max_tokens`, default 1024, range 64–4096 tokens) and the context window
+  (4–50 messages, default 20) come from `/settings` and reach both transports,
+  and `POST /api/chat` clamps the budget again. The 6000-character trim is
+  gone, the proxy accepts up to 128 KB and 51 messages so a full window fits,
+  and a reasoning endpoint no longer has its reply cut in half at 120 tokens.
 - The floating chat panel caps at `min(72vh, 720px)` and 760px wide, so a
   conversation shows about four replies instead of two and a half, and it
   still shrinks to its content when short. The chat island publishes

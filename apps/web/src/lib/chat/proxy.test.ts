@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { handleChat, MAX_BODY_BYTES } from './proxy';
+import { MAX_BODY_BYTES, OUTPUT_DEFAULT } from './llm';
+import { handleChat } from './proxy';
 
 const encoder = new TextEncoder();
 
@@ -65,12 +66,36 @@ describe('chat proxy', () => {
     expect(headers.authorization).toBe('Bearer sk-proxy-test');
     const body = JSON.parse(String(call[1].body)) as Record<string, unknown>;
     expect(body.stream).toBe(true);
-    expect(body.max_tokens).toBe(120);
+    expect(body.max_tokens).toBe(OUTPUT_DEFAULT);
     expect(body.temperature).toBe(0.7);
     expect(body.messages).toEqual([
       { role: 'system', content: '你是一只鲸鱼。' },
       { role: 'user', content: '你好' },
     ]);
+  });
+
+  it('forwards the requested output budget and clamps it', async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(sseChunks(), {
+          status: 200,
+          headers: { 'content-type': 'text/event-stream' },
+        }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await (await handleChat(makeRequest({ ...baseBody, maxOutputTokens: 2048 }))).text();
+    await (await handleChat(makeRequest({ ...baseBody, maxOutputTokens: 99999 }))).text();
+
+    const bodies = fetchMock.mock.calls.map(
+      (call) =>
+        JSON.parse(String((call as unknown as FetchCall)[1].body)) as { max_tokens?: number },
+    );
+    expect(bodies[0]?.max_tokens).toBe(2048);
+    expect(bodies[1]?.max_tokens).toBe(4096);
+    expect((await handleChat(makeRequest({ ...baseBody, maxOutputTokens: 'big' }))).status).toBe(
+      400,
+    );
   });
 
   it('rejects a cross-origin request before calling upstream', async () => {
@@ -119,17 +144,35 @@ describe('chat proxy', () => {
   });
 
   it('rejects a body over the size cap', async () => {
-    const messages = Array.from({ length: 20 }, () => ({
+    const messages = Array.from({ length: 50 }, () => ({
       role: 'user',
-      content: '啊'.repeat(600),
+      content: '啊'.repeat(1000),
     }));
     const response = await handleChat(makeRequest({ ...baseBody, messages }));
     expect(response.status).toBe(413);
-    expect(MAX_BODY_BYTES).toBe(32 * 1024);
+    expect(MAX_BODY_BYTES).toBe(128 * 1024);
+  });
+
+  it('accepts a full window of 51 messages', async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(sseChunks(), {
+          status: 200,
+          headers: { 'content-type': 'text/event-stream' },
+        }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const messages = [
+      { role: 'system', content: '系统' },
+      ...Array.from({ length: 50 }, () => ({ role: 'user', content: '在' })),
+    ];
+    const response = await handleChat(makeRequest({ ...baseBody, messages }));
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe('EMOTION: happy\n你好');
   });
 
   it('rejects too many messages, oversized text and missing fields', async () => {
-    const tooMany = Array.from({ length: 22 }, () => ({ role: 'user', content: '在' }));
+    const tooMany = Array.from({ length: 52 }, () => ({ role: 'user', content: '在' }));
     expect((await handleChat(makeRequest({ ...baseBody, messages: tooMany }))).status).toBe(400);
     expect(
       (

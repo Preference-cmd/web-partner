@@ -1,4 +1,5 @@
 import { dropKey, readKey, type StringStorage, writeKey } from '../storage';
+import { CONTEXT_DEFAULT, clampContextMessages, clampOutputTokens, OUTPUT_DEFAULT } from './llm';
 import type { ChatMode } from './types';
 
 export type { StringStorage } from '../storage';
@@ -18,6 +19,8 @@ export interface Settings {
   mode: ChatMode;
   forceDemo: boolean;
   direct: boolean;
+  maxOutputTokens: number;
+  contextMessages: number;
   panelAlpha: number;
   motion: Motion;
 }
@@ -28,6 +31,8 @@ export const DEFAULT_SETTINGS: Settings = {
   mode: 'demo',
   forceDemo: false,
   direct: false,
+  maxOutputTokens: OUTPUT_DEFAULT,
+  contextMessages: CONTEXT_DEFAULT,
   panelAlpha: ALPHA_DEFAULT,
   motion: 'system',
 };
@@ -39,6 +44,18 @@ function parseAlpha(value: unknown): number {
 
 function parseMotion(value: unknown): Motion {
   return value === 'reduced' || value === 'full' ? value : 'system';
+}
+
+function parseOutputTokens(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? clampOutputTokens(value)
+    : OUTPUT_DEFAULT;
+}
+
+function parseContextMessages(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? clampContextMessages(value)
+    : CONTEXT_DEFAULT;
 }
 
 export function loadSettings(storage: StringStorage | undefined): Settings {
@@ -54,6 +71,8 @@ export function loadSettings(storage: StringStorage | undefined): Settings {
       mode: record.mode === 'live' ? 'live' : 'demo',
       forceDemo: record.forceDemo === true,
       direct: record.direct === true,
+      maxOutputTokens: parseOutputTokens(record.maxOutputTokens),
+      contextMessages: parseContextMessages(record.contextMessages),
       panelAlpha: parseAlpha(record.panelAlpha),
       motion: parseMotion(record.motion),
     };

@@ -50,6 +50,7 @@ Read a fact here before asserting it — never from memory:
 | ------------------------------------------- | -------------------- |
 | product behavior, routes, UI copy           | `apps/web/src/pages/`, `apps/web/src/components/`, `README.md` |
 | chat modes, fallback, context window        | `apps/web/src/lib/chat/controller.ts` |
+| LLM parameters and request limits           | `apps/web/src/lib/chat/llm.ts` |
 | proxy contract and limits                   | `apps/web/src/lib/chat/proxy.ts` |
 | proxy vs direct transport                   | `apps/web/src/lib/chat/transport.ts` |
 | browser storage keys, limits, migration     | `apps/web/src/lib/chat/session-storage.ts`, `apps/web/src/lib/chat/settings.ts`, `apps/web/src/lib/debug/prefs.ts` |

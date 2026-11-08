@@ -22,6 +22,7 @@ const request: ChatRequest = {
   apiKey: 'sk-test-abc',
   model: 'demo-model',
   messages: [{ role: 'user', content: 'hi' }],
+  maxOutputTokens: 2048,
   direct: false,
 };
 
@@ -50,6 +51,7 @@ describe('chat transport', () => {
       apiKey: 'sk-test-abc',
       model: 'demo-model',
       messages: [{ role: 'user', content: 'hi' }],
+      maxOutputTokens: 2048,
     });
     expect(deltas.join('')).toBe('EMOTION: happy\n你好');
   });
@@ -68,7 +70,7 @@ describe('chat transport', () => {
     expect(headers.authorization).toBe('Bearer sk-test-abc');
     const body = JSON.parse(String(call[1].body)) as Record<string, unknown>;
     expect(body.stream).toBe(true);
-    expect(body.max_tokens).toBe(120);
+    expect(body.max_tokens).toBe(2048);
     expect(deltas.join('')).toBe('你好');
   });
 

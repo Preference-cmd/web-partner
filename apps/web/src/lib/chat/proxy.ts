@@ -1,14 +1,17 @@
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createTextStreamResponse, type ModelMessage, streamText, toTextStream } from 'ai';
+import {
+  clampOutputTokens,
+  MAX_BODY_BYTES,
+  MAX_ENDPOINT_CHARS,
+  MAX_MESSAGE_BYTES,
+  MAX_MESSAGES,
+  OUTPUT_DEFAULT,
+  TEMPERATURE,
+} from './llm';
 
-export const MAX_BODY_BYTES = 32 * 1024;
-export const MAX_MESSAGES = 21;
-export const MAX_MESSAGE_BYTES = 2 * 1024;
-export const MAX_ENDPOINT_CHARS = 2048;
 export const CONNECT_TIMEOUT_MS = 8000;
 export const IDLE_TIMEOUT_MS = 30 * 1000;
-export const TEMPERATURE = 0.7;
-export const MAX_OUTPUT_TOKENS = 120;
 
 const encoder = new TextEncoder();
 
@@ -17,6 +20,7 @@ interface ChatBody {
   apiKey: string;
   model: string;
   messages: ModelMessage[];
+  maxOutputTokens: number;
 }
 
 function fail(status: number, error: string): Response {
@@ -86,9 +90,16 @@ function readBody(raw: unknown): ChatBody | string {
   if (typeof record.model !== 'string' || record.model.length === 0) {
     return 'model is required';
   }
+  let maxOutputTokens = OUTPUT_DEFAULT;
+  if (record.maxOutputTokens !== undefined) {
+    if (typeof record.maxOutputTokens !== 'number' || !Number.isFinite(record.maxOutputTokens)) {
+      return 'maxOutputTokens must be a number';
+    }
+    maxOutputTokens = clampOutputTokens(record.maxOutputTokens);
+  }
   const messages = readMessages(record.messages);
   if (typeof messages === 'string') return messages;
-  return { endpoint, apiKey: record.apiKey, model: record.model, messages };
+  return { endpoint, apiKey: record.apiKey, model: record.model, messages, maxOutputTokens };
 }
 
 /**
@@ -145,7 +156,7 @@ export async function handleChat(request: Request): Promise<Response> {
     instructions: system || undefined,
     messages: conversation,
     temperature: TEMPERATURE,
-    maxOutputTokens: MAX_OUTPUT_TOKENS,
+    maxOutputTokens: body.maxOutputTokens,
     abortSignal: request.signal,
     timeout: { firstChunkMs: CONNECT_TIMEOUT_MS, chunkMs: IDLE_TIMEOUT_MS },
     onError: (error) => {

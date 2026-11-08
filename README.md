@@ -24,9 +24,9 @@ key stay in the browser.
 - **Twenty conversations on this device.** Up to 20 sessions of 100 messages are
   kept in the browser, with switch, inline rename, delete and a one-time
   migration from `partner.chat.v1`.
-- **Settings and a debug drawer.** `/settings` holds the connection, mode and
-  appearance, while the drawer exposes the pose, FPS, log lines, forced moods
-  and stage lighting.
+- **Settings and a debug drawer.** `/settings` holds the connection, the model
+  call (output budget and context window), mode and appearance, while the drawer
+  exposes the pose, FPS, log lines, forced moods and stage lighting.
 - **Details that matter.** `Cmd/Ctrl+K` or `/` focuses the composer,
   destructive actions ask in dialogs, and the layout becomes sheets on phones.
 

@@ -2,6 +2,7 @@ import { createStore, type StoreApi } from 'zustand/vanilla';
 import { type LogSource, pushLog } from '../debug/log';
 import { GREETING, pickDemoReply } from './demo';
 import { EMOTION_LABEL, judgeEmotion } from './emotion';
+import { CONTEXT_DEFAULT } from './llm';
 import { createStreamParser } from './parser';
 import {
   createSessionStorage,
@@ -23,9 +24,6 @@ import type {
   ModelMessage,
   SessionSummary,
 } from './types';
-
-export const CONTEXT_MESSAGES = 20;
-export const CONTEXT_CHARS = 6000;
 
 export const SYSTEM_PROMPT = [
   '你是小鲸，一个安静、体贴的伴侣型角色。',
@@ -104,27 +102,22 @@ function defaultSleep(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
-/** Latest turns within the message-count and character budgets. */
-export function selectContext(
-  messages: readonly Message[],
-  limit = CONTEXT_MESSAGES,
-  maxChars = CONTEXT_CHARS,
-): Message[] {
+/** The latest turns, within the configured window. */
+export function selectContext(messages: readonly Message[], limit = CONTEXT_DEFAULT): Message[] {
   const usable = messages.filter((message) => message.content.trim().length > 0);
-  const window = usable.slice(-limit);
-  let total = window.reduce((sum, message) => sum + message.content.length, 0);
-  let start = 0;
-  while (total > maxChars && start < window.length - 1) {
-    total -= window[start]?.content.length ?? 0;
-    start += 1;
-  }
-  return window.slice(start);
+  return usable.slice(-limit);
 }
 
-export function buildModelMessages(history: readonly Message[]): ModelMessage[] {
+export function buildModelMessages(
+  history: readonly Message[],
+  contextMessages = CONTEXT_DEFAULT,
+): ModelMessage[] {
   return [
     { role: 'system', content: SYSTEM_PROMPT },
-    ...selectContext(history).map((message) => ({ role: message.role, content: message.content })),
+    ...selectContext(history, contextMessages).map((message) => ({
+      role: message.role,
+      content: message.content,
+    })),
   ];
 }
 
@@ -412,7 +405,8 @@ export function createChatController(deps: ChatControllerDeps = {}): ChatControl
       endpoint: config.settings.endpoint,
       apiKey: config.apiKey,
       model: config.settings.model,
-      messages: buildModelMessages(history),
+      messages: buildModelMessages(history, config.settings.contextMessages),
+      maxOutputTokens: config.settings.maxOutputTokens,
       direct: config.settings.direct,
     };
     const parser = createStreamParser({

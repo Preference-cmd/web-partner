@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CONTEXT_DEFAULT,
+  CONTEXT_MAX,
+  CONTEXT_MIN,
+  OUTPUT_DEFAULT,
+  OUTPUT_MAX,
+  OUTPUT_MIN,
+} from './llm';
+import {
   ALPHA_DEFAULT,
   ALPHA_MAX,
   ALPHA_MIN,
@@ -68,6 +76,23 @@ describe('settings', () => {
     expect(store(undefined)).toBe(ALPHA_DEFAULT);
   });
 
+  it('clamps the model-call numbers', () => {
+    const stored = (patch: Record<string, unknown>) =>
+      loadSettings(
+        memoryStorage({
+          [SETTINGS_KEY]: JSON.stringify({ ...DEFAULT_SETTINGS, ...patch }),
+        }),
+      );
+    expect(stored({ maxOutputTokens: 2048 }).maxOutputTokens).toBe(2048);
+    expect(stored({ maxOutputTokens: 1 }).maxOutputTokens).toBe(OUTPUT_MIN);
+    expect(stored({ maxOutputTokens: 99999 }).maxOutputTokens).toBe(OUTPUT_MAX);
+    expect(stored({ maxOutputTokens: 'big' }).maxOutputTokens).toBe(OUTPUT_DEFAULT);
+    expect(stored({ contextMessages: 30 }).contextMessages).toBe(30);
+    expect(stored({ contextMessages: 0 }).contextMessages).toBe(CONTEXT_MIN);
+    expect(stored({ contextMessages: 99 }).contextMessages).toBe(CONTEXT_MAX);
+    expect(stored({ contextMessages: null }).contextMessages).toBe(CONTEXT_DEFAULT);
+  });
+
   it('only accepts a known motion value', () => {
     const store = (motion: unknown) =>
       loadSettings(
@@ -77,6 +102,22 @@ describe('settings', () => {
     expect(store('full')).toBe('full');
     expect(store('system')).toBe('system');
     expect(store('sometimes')).toBe('system');
+  });
+
+  it('fills the model-call defaults into an older record', () => {
+    const older = {
+      endpoint: 'https://api.example.com/v1',
+      model: 'demo-model',
+      mode: 'live',
+      forceDemo: false,
+      direct: false,
+      panelAlpha: 0.7,
+      motion: 'reduced',
+    };
+    const loaded = loadSettings(memoryStorage({ [SETTINGS_KEY]: JSON.stringify(older) }));
+    expect(loaded.maxOutputTokens).toBe(OUTPUT_DEFAULT);
+    expect(loaded.contextMessages).toBe(CONTEXT_DEFAULT);
+    expect(loaded.panelAlpha).toBe(0.7);
   });
 
   it('clears the settings record', () => {

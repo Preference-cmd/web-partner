@@ -35,6 +35,15 @@ import { Slider } from '@/components/ui/slider';
 import { Toaster } from '@/components/ui/sonner';
 import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import {
+  CONTEXT_DEFAULT,
+  CONTEXT_MAX,
+  CONTEXT_MIN,
+  OUTPUT_DEFAULT,
+  OUTPUT_MAX,
+  OUTPUT_MIN,
+  OUTPUT_STEP,
+} from '@/lib/chat/llm';
 import { createSessionStorage } from '@/lib/chat/session-storage';
 import {
   ALPHA_DEFAULT,
@@ -174,7 +183,7 @@ export default function SettingsPanel() {
         <header className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold tracking-tight">设置</h1>
           <p className="text-sm text-muted-foreground">
-            连接、模式与外观都存在这台设备。API key 只留在当前标签页，关掉就没了。
+            连接、模型调用、模式与外观都存在这台设备。API key 只留在当前标签页，关掉就没了。
           </p>
         </header>
 
@@ -279,6 +288,63 @@ export default function SettingsPanel() {
                       toast.success(checked ? '已打开直连' : '已关闭直连');
                     }}
                   />
+                </Field>
+              </FieldGroup>
+            </CardContent>
+          </Card>
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <h2 className="text-sm font-medium text-muted-foreground">模型调用</h2>
+          <Card>
+            <CardContent>
+              <FieldGroup>
+                <Field>
+                  <FieldLabel htmlFor="set-output">
+                    输出预算
+                    <span className="font-mono text-muted-foreground">
+                      {settings.maxOutputTokens} tokens
+                    </span>
+                  </FieldLabel>
+                  <Slider
+                    id="set-output"
+                    min={OUTPUT_MIN}
+                    max={OUTPUT_MAX}
+                    step={OUTPUT_STEP}
+                    value={[settings.maxOutputTokens]}
+                    aria-label="输出预算"
+                    onValueChange={(value) =>
+                      update({ maxOutputTokens: value[0] ?? OUTPUT_DEFAULT })
+                    }
+                    onValueCommit={() => toast.success('输出预算已保存')}
+                  />
+                  <FieldDescription>
+                    回复最多生成这么多 token。推理型端点会先用预算思考，太小会在正文中间截断。
+                  </FieldDescription>
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="set-context">
+                    上下文窗口
+                    <span className="font-mono text-muted-foreground">
+                      {settings.contextMessages} 条
+                    </span>
+                  </FieldLabel>
+                  <Slider
+                    id="set-context"
+                    min={CONTEXT_MIN}
+                    max={CONTEXT_MAX}
+                    step={1}
+                    value={[settings.contextMessages]}
+                    aria-label="上下文窗口"
+                    onValueChange={(value) =>
+                      update({ contextMessages: value[0] ?? CONTEXT_DEFAULT })
+                    }
+                    onValueCommit={() => toast.success('上下文窗口已保存')}
+                  />
+                  <FieldDescription>
+                    每次请求带上最近这么多条对话；更早的留在本机。条数越多，请求越大也越贵。
+                  </FieldDescription>
                 </Field>
               </FieldGroup>
             </CardContent>
