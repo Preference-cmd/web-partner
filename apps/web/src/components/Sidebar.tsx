@@ -206,7 +206,16 @@ export default function Sidebar({ active = 'chat', license = true }: SidebarProp
       )}
 
       <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
-        <SheetContent side="left" className="w-72 p-0" aria-describedby={undefined}>
+        <SheetContent
+          side="left"
+          className="w-72 p-0"
+          aria-describedby={undefined}
+          onCloseAutoFocus={(event) => {
+            // Picking a conversation closes the drawer; put focus back on its button.
+            event.preventDefault();
+            document.querySelector<HTMLElement>("button[aria-label='打开侧边栏']")?.focus();
+          }}
+        >
           <SheetTitle className="sr-only">侧边栏</SheetTitle>
           <SidebarBody
             active={active}

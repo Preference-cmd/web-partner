@@ -30,6 +30,7 @@ export default function SessionList({ controller, onPick }: SessionListProps) {
   const [draft, setDraft] = useState('');
   const [pendingDelete, setPendingDelete] = useState<SessionSummary | null>(null);
   const cancelled = useRef(false);
+  const listRef = useRef<HTMLUListElement>(null);
 
   useEffect(() => {
     if (!controller) return;
@@ -76,7 +77,11 @@ export default function SessionList({ controller, onPick }: SessionListProps) {
 
   return (
     <>
-      <ul className="flex max-h-56 flex-col gap-0.5 overflow-y-auto" aria-label="本机对话">
+      <ul
+        ref={listRef}
+        className="flex max-h-56 flex-col gap-0.5 overflow-y-auto"
+        aria-label="本机对话"
+      >
         {sessions.map((session) => {
           const active = session.id === activeId;
           return (
@@ -118,6 +123,7 @@ export default function SessionList({ controller, onPick }: SessionListProps) {
                     size="icon-xs"
                     variant="ghost"
                     aria-label="取消重命名"
+                    onMouseDown={(event) => event.preventDefault()}
                     onClick={cancelRename}
                   >
                     <XIcon />
@@ -171,7 +177,16 @@ export default function SessionList({ controller, onPick }: SessionListProps) {
           if (!open) setPendingDelete(null);
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent
+          onCloseAutoFocus={(event) => {
+            // The dialog is opened by state, not a trigger, so Radix has nowhere to return to.
+            event.preventDefault();
+            const list = listRef.current;
+            const active = list?.querySelector<HTMLElement>('[aria-current="page"]');
+            const first = list?.querySelector<HTMLElement>('li button');
+            (active ?? first)?.focus();
+          }}
+        >
           <AlertDialogHeader>
             <AlertDialogTitle>删除这段对话？</AlertDialogTitle>
             <AlertDialogDescription>
