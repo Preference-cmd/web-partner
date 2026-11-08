@@ -80,6 +80,12 @@ change states its migration at the top of the release it ships in.
 - A connection test in settings: one minimal non-streaming turn through the
   same path the chat uses, answered as 通过 / key 被拒 / 端点不可达 / 未填完 with a
   reason. It writes nothing, retries nothing and never logs the key.
+- On a phone the primary controls answer to a thumb: send and stop, the fold and
+  clear controls, quick actions, the drawer button, the debug button, session
+  rename/delete and every sheet close are at least 44×44, and the quick actions
+  stay reachable with the transcript folded. The panel keeps clear of the notch
+  (`env(safe-area-inset-bottom)`) and rises above the on-screen keyboard by
+  watching `visualViewport`.
 - The conversation panel can be resized: drag its top edge, nudge it with the
   arrow keys (Home / End jump to the limits, Enter goes back to automatic), or
   double-click the handle. The height is stored in `partner.settings.v1` as

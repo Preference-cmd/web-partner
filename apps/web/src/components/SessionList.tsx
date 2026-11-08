@@ -88,7 +88,7 @@ export default function SessionList({ controller, onPick }: SessionListProps) {
             <li
               key={session.id}
               className={cn(
-                'group flex items-center gap-0.5 rounded-md',
+                'group flex items-center gap-0.5 rounded-md max-md:min-h-12',
                 active ? 'bg-secondary' : 'hover:bg-accent/50',
               )}
             >
@@ -144,11 +144,12 @@ export default function SessionList({ controller, onPick }: SessionListProps) {
                       {formatSessionTime(session.updatedAt)}
                     </span>
                   </button>
-                  <div className="flex shrink-0 items-center opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100">
+                  <div className="flex shrink-0 items-center opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100 max-md:opacity-100">
                     <Button
                       type="button"
                       size="icon-xs"
                       variant="ghost"
+                      className="max-md:size-11"
                       aria-label={`重命名「${session.title}」`}
                       onClick={() => startRename(session)}
                     >
@@ -158,6 +159,7 @@ export default function SessionList({ controller, onPick }: SessionListProps) {
                       type="button"
                       size="icon-xs"
                       variant="ghost"
+                      className="max-md:size-11"
                       aria-label={`删除「${session.title}」`}
                       onClick={() => setPendingDelete(session)}
                     >

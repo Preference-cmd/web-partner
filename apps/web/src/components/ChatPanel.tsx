@@ -224,12 +224,34 @@ export default function ChatPanel() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [narrow, setNarrow] = useState(false);
   const [maxHeight, setMaxHeight] = useState(720);
+  // The on-screen keyboard shrinks the visual viewport, not the layout one.
+  const [keyboardInset, setKeyboardInset] = useState(0);
+  const [viewportCap, setViewportCap] = useState(720);
   const panelRef = useRef<HTMLElement>(null);
   const syncRef = useRef<(() => void) | null>(null);
   const dragRef = useRef<{ startY: number; startHeight: number } | null>(null);
   // The sync callback is created once; it reads the pinned height through this ref.
   const heightRef = useRef<number | null>(null);
   const collapsedRef = useRef(false);
+
+  // The visual viewport shrinks when a keyboard opens; the layout one does not.
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    const apply = (): void => {
+      const inset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+      setKeyboardInset(inset > 90 ? Math.round(inset) : 0);
+      setViewportCap(Math.round(viewport.height));
+      syncRef.current?.();
+    };
+    apply();
+    viewport.addEventListener('resize', apply);
+    viewport.addEventListener('scroll', apply);
+    return () => {
+      viewport.removeEventListener('resize', apply);
+      viewport.removeEventListener('scroll', apply);
+    };
+  }, []);
 
   useEffect(() => {
     controller.hydrate();
@@ -578,9 +600,12 @@ export default function ChatPanel() {
       style={{
         backgroundColor:
           'color-mix(in oklab, var(--card) calc(var(--panel-alpha, 0.62) * 100%), transparent)',
+        // A notch and a keyboard both eat into the bottom edge.
+        bottom: `calc(max(${PANEL_GAP[narrow ? 'narrow' : 'wide']}px, env(safe-area-inset-bottom)) + ${keyboardInset}px)`,
+        maxHeight: `${Math.max(MIN_PANEL, Math.min(narrow ? 520 : 720, viewportCap - 2 * PANEL_GAP[narrow ? 'narrow' : 'wide']))}px`,
         ...(narrow || collapsed || manualHeight === null ? {} : { height: `${manualHeight}px` }),
       }}
-      className="absolute bottom-3 left-1/2 z-20 flex max-h-[min(52vh,520px)] w-[min(760px,calc(100%-1.5rem))] -translate-x-1/2 flex-col overflow-hidden rounded-xl border text-card-foreground shadow-2xl backdrop-blur-xl md:bottom-6 md:max-h-[min(72vh,720px)] md:w-[min(760px,calc(100%-3rem))]"
+      className="absolute left-1/2 z-20 flex w-[min(760px,calc(100%-1.5rem))] -translate-x-1/2 flex-col overflow-hidden rounded-xl border text-card-foreground shadow-2xl backdrop-blur-xl md:w-[min(760px,calc(100%-3rem))]"
     >
       {narrow || collapsed ? null : (
         // biome-ignore lint/a11y/useSemanticElements: the handle needs pointer capture and a grip child; an hr cannot hold either.
@@ -630,7 +655,7 @@ export default function ChatPanel() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-muted-foreground"
+                className="text-muted-foreground max-md:h-11"
                 disabled={messages.length === 0}
               >
                 清空
@@ -654,6 +679,7 @@ export default function ChatPanel() {
           <Button
             variant="ghost"
             size="icon-sm"
+            className="max-md:size-11"
             aria-label={collapsed ? '展开消息区' : '收起消息区'}
             aria-expanded={!collapsed}
             onClick={() => setCollapsed((value) => !value)}
@@ -686,22 +712,21 @@ export default function ChatPanel() {
         <ConversationScrollButton aria-label="跳到最新消息" />
       </Conversation>
 
-      {collapsed ? null : (
-        <div className="px-3 pb-1">
-          <Suggestions>
-            {QUICK_ACTIONS.map(([label, text]) => (
-              <Suggestion
-                key={label}
-                suggestion={text}
-                onClick={(value) => controller.quickReply(value)}
-                disabled={streaming}
-              >
-                {label}
-              </Suggestion>
-            ))}
-          </Suggestions>
-        </div>
-      )}
+      {/* Folded or not, the quick actions stay one tap away. */}
+      <div className="px-3 pb-1">
+        <Suggestions>
+          {QUICK_ACTIONS.map(([label, text]) => (
+            <Suggestion
+              key={label}
+              suggestion={text}
+              onClick={(value) => controller.quickReply(value)}
+              disabled={streaming}
+            >
+              {label}
+            </Suggestion>
+          ))}
+        </Suggestions>
+      </div>
 
       <PromptInput
         className="border-t p-2"
@@ -757,7 +782,10 @@ export default function ChatPanel() {
         </PromptInputBody>
         <PromptInputFooter>
           <PromptInputTools>
-            <PromptInputAttachButton onClick={() => fileRef.current?.click()} />
+            <PromptInputAttachButton
+              className="max-md:size-11"
+              onClick={() => fileRef.current?.click()}
+            />
             <input
               ref={fileRef}
               accept="image/png,image/jpeg,image/webp,image/gif,.txt,.md,.json,.csv"
@@ -839,6 +867,7 @@ export default function ChatPanel() {
               </>
             )}
             <PromptInputSubmit
+              className="max-md:size-11"
               status={streaming ? 'streaming' : 'ready'}
               disabled={!streaming && draft.trim().length === 0 && attachments.length === 0}
               onClick={(event) => {

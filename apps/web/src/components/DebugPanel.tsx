@@ -447,7 +447,7 @@ export default function DebugPanel() {
               aria-label={open ? '关闭调试面板' : '打开调试面板'}
               aria-expanded={open}
               aria-controls="debug-panel"
-              className="bg-background/80 backdrop-blur"
+              className="max-md:size-11 bg-background/80 backdrop-blur"
               onClick={() => updatePrefs({ open: !open })}
             >
               {open ? <XIcon /> : <PanelRightIcon />}

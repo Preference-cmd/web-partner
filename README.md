@@ -35,7 +35,8 @@ key stay in the browser.
   The connection test sends one ping and names what failed, while the drawer
   exposes the pose, FPS, log lines, forced moods and stage lighting.
 - **Details that matter.** `Cmd/Ctrl+K` or `/` focuses the composer,
-  destructive actions ask in dialogs, and the layout becomes sheets on phones.
+  destructive actions ask in dialogs, the layout becomes sheets on phones, and
+  every control a thumb needs is at least 44×44 there.
 
 ## How it works
 

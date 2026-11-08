@@ -159,7 +159,7 @@ export default function Sidebar({ license = true }: SidebarProps) {
         variant="outline"
         size="icon"
         aria-label="打开侧边栏"
-        className="fixed top-3 left-3 z-40 bg-background/80 backdrop-blur md:hidden"
+        className="fixed top-3 left-3 z-40 size-11 bg-background/80 backdrop-blur md:hidden"
         onClick={() => setDrawerOpen(true)}
       >
         <MenuIcon />
