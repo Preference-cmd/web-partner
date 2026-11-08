@@ -13,6 +13,35 @@ export const ALPHA_DEFAULT = 0.62;
 
 export type Motion = 'system' | 'reduced' | 'full';
 
+export type Effort = 'light' | 'standard' | 'deep' | 'custom';
+
+export interface ModelPreset {
+  id: string;
+  label: string;
+  model: string;
+}
+
+export interface EffortPresets {
+  light: number;
+  standard: number;
+  deep: number;
+}
+
+/** One dropdown, not a model zoo. */
+export const MODEL_PRESET_LIMIT = 8;
+
+export const EFFORT_LABEL: Record<Exclude<Effort, 'custom'>, string> = {
+  light: '轻',
+  standard: '标准',
+  deep: '深入',
+};
+
+export const DEFAULT_EFFORT_PRESETS: EffortPresets = {
+  light: 512,
+  standard: OUTPUT_DEFAULT,
+  deep: 2048,
+};
+
 export interface Settings {
   endpoint: string;
   model: string;
@@ -25,6 +54,9 @@ export interface Settings {
   motion: Motion;
   /** Null keeps the panel content-sized; a number pins the height the user dragged. */
   panelHeight: number | null;
+  modelPresets: ModelPreset[];
+  effort: Effort;
+  effortPresets: EffortPresets;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -38,6 +70,9 @@ export const DEFAULT_SETTINGS: Settings = {
   panelAlpha: ALPHA_DEFAULT,
   motion: 'system',
   panelHeight: null,
+  modelPresets: [],
+  effort: 'standard',
+  effortPresets: { ...DEFAULT_EFFORT_PRESETS },
 };
 
 function parseAlpha(value: unknown): number {
@@ -47,6 +82,54 @@ function parseAlpha(value: unknown): number {
 
 function parseMotion(value: unknown): Motion {
   return value === 'reduced' || value === 'full' ? value : 'system';
+}
+
+function parseModelPresets(value: unknown): ModelPreset[] {
+  if (!Array.isArray(value)) return [];
+  const presets: ModelPreset[] = [];
+  for (const item of value) {
+    if (typeof item !== 'object' || item === null) continue;
+    const record = item as Record<string, unknown>;
+    const model = typeof record.model === 'string' ? record.model.trim() : '';
+    if (!model) continue;
+    const label =
+      typeof record.label === 'string' && record.label.trim()
+        ? record.label.trim().slice(0, 24)
+        : model.slice(0, 24);
+    const id =
+      typeof record.id === 'string' && record.id.trim()
+        ? record.id.trim()
+        : `m-${presets.length}-${model.slice(0, 8)}`;
+    if (presets.some((preset) => preset.id === id)) continue;
+    presets.push({ id, label, model });
+    if (presets.length >= MODEL_PRESET_LIMIT) break;
+  }
+  return presets;
+}
+
+function parseEffort(value: unknown): Effort {
+  return value === 'light' || value === 'standard' || value === 'deep' || value === 'custom'
+    ? value
+    : 'standard';
+}
+
+function parseEffortPresets(value: unknown): EffortPresets {
+  const record =
+    typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+  const read = (key: keyof EffortPresets): number => {
+    const raw = record[key];
+    return typeof raw === 'number' && Number.isFinite(raw)
+      ? clampOutputTokens(raw)
+      : DEFAULT_EFFORT_PRESETS[key];
+  };
+  return { light: read('light'), standard: read('standard'), deep: read('deep') };
+}
+
+/** Tokens the active effort asks for; a custom effort keeps the raw budget. */
+export function effortTokens(settings: Settings): number {
+  return settings.effort === 'custom'
+    ? settings.maxOutputTokens
+    : settings.effortPresets[settings.effort];
 }
 
 function parseOutputTokens(value: unknown): number {
@@ -82,6 +165,9 @@ export function loadSettings(storage: StringStorage | undefined): Settings {
         typeof record.panelHeight === 'number' && Number.isFinite(record.panelHeight)
           ? Math.round(record.panelHeight)
           : null,
+      modelPresets: parseModelPresets(record.modelPresets),
+      effort: parseEffort(record.effort),
+      effortPresets: parseEffortPresets(record.effortPresets),
     };
   } catch {
     return { ...DEFAULT_SETTINGS };

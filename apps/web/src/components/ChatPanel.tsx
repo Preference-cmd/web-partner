@@ -43,17 +43,34 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { InputGroupButton } from '@/components/ui/input-group';
 import { getChatController } from '@/lib/chat/controller';
 import { QUICK_ACTIONS } from '@/lib/chat/demo';
 import { EMOTION_LABEL } from '@/lib/chat/emotion';
 import {
   applyAppearance,
+  DEFAULT_SETTINGS,
+  EFFORT_LABEL,
+  type Effort,
+  effortTokens,
   loadSettings,
   readApiKey,
   resolveMode,
+  type Settings,
   saveSettings,
 } from '@/lib/chat/settings';
 import type { Message as ChatMessage, ChatMode, Emotion } from '@/lib/chat/types';
+import { announceSettings, requestSettings, SETTINGS_CHANGED_EVENT } from '@/lib/ui/open-settings';
 
 /** How much of the figure must stay above the panel before growth stops. */
 const TARGET_VISIBLE = { narrow: 0.6, wide: 0.55 };
@@ -144,6 +161,7 @@ export default function ChatPanel() {
   const [draft, setDraft] = useState('');
   const [collapsed, setCollapsed] = useState(false);
   const [mode, setMode] = useState<ChatMode>('demo');
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [manualHeight, setManualHeight] = useState<number | null>(null);
   const [narrow, setNarrow] = useState(false);
   const [maxHeight, setMaxHeight] = useState(720);
@@ -164,6 +182,7 @@ export default function ChatPanel() {
   useEffect(() => {
     const stored = loadSettings(window.localStorage);
     applyAppearance(document.documentElement, stored);
+    setSettings(stored);
     setMode(resolveMode(stored, readApiKey(window.sessionStorage, window.localStorage)));
     if (stored.panelHeight !== null) setManualHeight(clampPanelHeight(stored.panelHeight));
 
@@ -180,6 +199,17 @@ export default function ChatPanel() {
       media.removeEventListener('change', update);
       window.removeEventListener('resize', update);
     };
+  }, []);
+
+  // The settings dialog writes on every change; the composer shows the same values.
+  useEffect(() => {
+    const read = (): void => {
+      const next = loadSettings(window.localStorage);
+      setSettings(next);
+      setMode(resolveMode(next, readApiKey(window.sessionStorage, window.localStorage)));
+    };
+    window.addEventListener(SETTINGS_CHANGED_EVENT, read);
+    return () => window.removeEventListener(SETTINGS_CHANGED_EVENT, read);
   }, []);
 
   // A pinned height overrides the content-sized panel; sync() reads it through the ref.
@@ -352,6 +382,25 @@ export default function ChatPanel() {
     persistHeight(heightRef.current);
   }
 
+  function pickModel(model: string): void {
+    const next = { ...settings, model };
+    setSettings(next);
+    saveSettings(window.localStorage, next);
+    announceSettings();
+  }
+
+  function pickEffort(effort: Effort): void {
+    const next = {
+      ...settings,
+      effort,
+      maxOutputTokens:
+        effort === 'custom' ? settings.maxOutputTokens : settings.effortPresets[effort],
+    };
+    setSettings(next);
+    saveSettings(window.localStorage, next);
+    announceSettings();
+  }
+
   function onHandleKeyDown(event: ReactKeyboardEvent<HTMLDivElement>): void {
     const node = panelRef.current;
     if (!node) return;
@@ -370,6 +419,42 @@ export default function ChatPanel() {
       applyHeight(null);
     }
   }
+
+  const modelLabel = settings.model.trim() || '未设模型';
+  const effortLabel =
+    settings.effort === 'custom'
+      ? `自定义 · ${effortTokens(settings)}`
+      : `${EFFORT_LABEL[settings.effort]} · ${effortTokens(settings)}`;
+
+  const modelItems =
+    settings.modelPresets.length === 0 ? (
+      <DropdownMenuItem disabled>还没有保存的模型</DropdownMenuItem>
+    ) : (
+      <DropdownMenuRadioGroup value={settings.model} onValueChange={pickModel}>
+        {settings.modelPresets.map((preset) => (
+          <DropdownMenuRadioItem key={preset.id} value={preset.model}>
+            {preset.label}
+          </DropdownMenuRadioItem>
+        ))}
+      </DropdownMenuRadioGroup>
+    );
+
+  const effortItems = (
+    <DropdownMenuRadioGroup
+      value={settings.effort}
+      onValueChange={(value) => pickEffort(value as Effort)}
+    >
+      {(['light', 'standard', 'deep'] as const).map((id) => (
+        <DropdownMenuRadioItem key={id} value={id}>
+          {EFFORT_LABEL[id]} · {settings.effortPresets[id]}
+        </DropdownMenuRadioItem>
+      ))}
+      <DropdownMenuSeparator />
+      <DropdownMenuRadioItem value="custom">
+        自定义 · {settings.maxOutputTokens}
+      </DropdownMenuRadioItem>
+    </DropdownMenuRadioGroup>
+  );
 
   return (
     <section
@@ -522,7 +607,73 @@ export default function ChatPanel() {
         </PromptInputBody>
         <PromptInputFooter>
           <PromptInputTools />
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex min-w-0 items-center gap-1">
+            {narrow ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <InputGroupButton
+                    size="sm"
+                    variant="outline"
+                    className="max-w-32 rounded-full"
+                    aria-label={`模型与努力：${modelLabel}，${effortLabel}`}
+                  >
+                    <span className="truncate">{modelLabel}</span>
+                    <ChevronDownIcon className="size-3.5 opacity-60" />
+                  </InputGroupButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>模型</DropdownMenuLabel>
+                  {modelItems}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>努力</DropdownMenuLabel>
+                  {effortItems}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => requestSettings()}>管理模型…</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <InputGroupButton
+                      size="sm"
+                      variant="outline"
+                      className="max-w-36 rounded-full"
+                      aria-label={`模型：${modelLabel}`}
+                    >
+                      <span className="truncate">{modelLabel}</span>
+                      <ChevronDownIcon className="size-3.5 opacity-60" />
+                    </InputGroupButton>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>模型</DropdownMenuLabel>
+                    {modelItems}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={() => requestSettings()}>
+                      管理模型…
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <InputGroupButton
+                      size="sm"
+                      variant="outline"
+                      className="rounded-full"
+                      aria-label={`努力：${effortLabel}`}
+                    >
+                      <span className="text-muted-foreground">努力</span>
+                      {effortLabel}
+                      <ChevronDownIcon className="size-3.5 opacity-60" />
+                    </InputGroupButton>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44">
+                    <DropdownMenuLabel>努力</DropdownMenuLabel>
+                    {effortItems}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            )}
             <PromptInputSubmit
               status={streaming ? 'streaming' : 'ready'}
               disabled={!streaming && draft.trim().length === 0}

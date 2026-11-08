@@ -14,10 +14,13 @@ import {
   applyAppearance,
   clearApiKey,
   clearSettings,
+  DEFAULT_EFFORT_PRESETS,
   DEFAULT_SETTINGS,
   describeMode,
+  effortTokens,
   endpointHint,
   loadSettings,
+  MODEL_PRESET_LIMIT,
   readApiKey,
   resolveMode,
   SECRET_KEY,
@@ -206,5 +209,67 @@ describe('settings', () => {
     applyAppearance(root as unknown as HTMLElement, { panelAlpha: 0.75, motion: 'reduced' });
     expect(properties['--panel-alpha']).toBe('0.75');
     expect(root.dataset.motion).toBe('reduced');
+  });
+
+  it('keeps model presets in order and drops empty or duplicate ones', () => {
+    const loaded = loadSettings(
+      memoryStorage({
+        [SETTINGS_KEY]: JSON.stringify({
+          ...DEFAULT_SETTINGS,
+          modelPresets: [
+            { id: 'a', label: 'Fast', model: 'gpt-4o-mini' },
+            { id: 'b', label: '', model: 'gpt-4o' },
+            { id: 'c', label: 'Empty', model: '   ' },
+            { id: 'a', label: 'Duplicate id', model: 'x' },
+            'not a preset',
+          ],
+        }),
+      }),
+    );
+    expect(loaded.modelPresets).toEqual([
+      { id: 'a', label: 'Fast', model: 'gpt-4o-mini' },
+      { id: 'b', label: 'gpt-4o', model: 'gpt-4o' },
+    ]);
+  });
+
+  it('caps the stored presets at the limit', () => {
+    const many = Array.from({ length: 12 }, (_, index) => ({
+      id: 'p' + index,
+      label: 'Model ' + index,
+      model: 'm' + index,
+    }));
+    const loaded = loadSettings(
+      memoryStorage({
+        [SETTINGS_KEY]: JSON.stringify({ ...DEFAULT_SETTINGS, modelPresets: many }),
+      }),
+    );
+    expect(loaded.modelPresets).toHaveLength(MODEL_PRESET_LIMIT);
+  });
+
+  it('reads the effort and clamps its presets', () => {
+    const read = (patch: Record<string, unknown>) =>
+      loadSettings(
+        memoryStorage({
+          [SETTINGS_KEY]: JSON.stringify({ ...DEFAULT_SETTINGS, ...patch }),
+        }),
+      );
+    expect(read({ effort: 'deep' }).effort).toBe('deep');
+    expect(read({ effort: 'custom' }).effort).toBe('custom');
+    expect(read({ effort: 'turbo' }).effort).toBe('standard');
+    expect(read({ effortPresets: { light: 1, standard: 99999, deep: 777 } }).effortPresets).toEqual(
+      { light: OUTPUT_MIN, standard: OUTPUT_MAX, deep: 777 },
+    );
+    expect(read({ effortPresets: null }).effortPresets).toEqual(DEFAULT_EFFORT_PRESETS);
+  });
+
+  it('derives the request budget from the active effort', () => {
+    const base = {
+      ...DEFAULT_SETTINGS,
+      effortPresets: { light: 100, standard: 200, deep: 300 },
+      maxOutputTokens: 999,
+    };
+    expect(effortTokens({ ...base, effort: 'light' })).toBe(100);
+    expect(effortTokens({ ...base, effort: 'deep' })).toBe(300);
+    expect(effortTokens({ ...base, effort: 'custom' })).toBe(999);
   });
 });

@@ -62,6 +62,11 @@ change states its migration at the top of the release it ships in.
   log is memory only and a reload starts it empty.
 - A stage bubble: one line above the character, printed by the debug drawer,
   gone after ten seconds, without touching the chat, the model or the mood.
+- Model presets and effort presets. Settings can store up to eight model names
+  for the current endpoint and define what 轻 / 标准 / 深入 mean in output
+  tokens; the composer shows a model menu and an effort menu, and switching
+  either writes the setting the next request reads. On phones the two menus
+  collapse into one.
 - The conversation panel can be resized: drag its top edge, nudge it with the
   arrow keys (Home / End jump to the limits, Enter goes back to automatic), or
   double-click the handle. The height is stored in `partner.settings.v1` as

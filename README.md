@@ -20,7 +20,9 @@ key stay in the browser.
 - **Chat that works before setup.** Demo replies stream from local templates,
   and three quick actions answer without a model.
 - **Bring your own model.** Any OpenAI-compatible endpoint works through the
-  Worker, or directly from the browser for a local model.
+  Worker, or directly from the browser for a local model. Up to eight model
+  presets sit behind the composer's model menu, and the 努力 menu switches the
+  output budget between light, standard, deep and a custom value.
 - **Twenty conversations on this device.** Up to 20 sessions of 100 messages are
   kept in the browser, with switch, inline rename, delete and a one-time
   migration from `partner.chat.v1`.
@@ -57,6 +59,8 @@ pnpm check       # lint, typecheck, test, build
 2. Enter the base URL without `/chat/completions`, the model name and the key.
 3. Switch the mode to 实时; use 直连端点 for a local `http` endpoint or one that
    does not allow CORS.
+4. Optionally save model presets (up to eight) and tune the three 努力 presets;
+   the composer menus then switch model and effort without opening settings.
 
 The sidebar chip names the mode in force. The key lives in `sessionStorage` and
 is gone when the tab closes; a failed upstream falls back to a labelled template

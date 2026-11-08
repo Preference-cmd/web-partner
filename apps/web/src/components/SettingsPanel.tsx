@@ -8,7 +8,9 @@ import {
   MessagesSquareIcon,
   PaletteIcon,
   PlugIcon,
+  PlusIcon,
   SlidersHorizontalIcon,
+  XIcon,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -48,14 +50,19 @@ import {
   clearSettings,
   DEFAULT_SETTINGS,
   describeMode,
+  EFFORT_LABEL,
+  type EffortPresets,
   endpointHint,
   loadSettings,
+  MODEL_PRESET_LIMIT,
+  type ModelPreset,
   type Motion,
   readApiKey,
   type Settings,
   saveApiKey,
   saveSettings,
 } from '@/lib/chat/settings';
+import { announceSettings } from '@/lib/ui/open-settings';
 
 const MODE_OPTIONS = [
   { id: 'demo', label: '演示' },
@@ -172,6 +179,27 @@ function FieldRow({
   );
 }
 
+/** A full-width block whose label is not attached to one input. */
+function Block({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-2 py-4">
+      <span className="text-sm font-medium">{title}</span>
+      {children}
+      {description ? (
+        <p className="text-sm leading-normal text-muted-foreground">{description}</p>
+      ) : null}
+    </div>
+  );
+}
+
 /** A number the settings page commits on blur or Enter, clamped to its range. */
 function TokenField({
   id,
@@ -248,6 +276,7 @@ export default function SettingsPanel() {
     saveSettings(window.localStorage, next);
     applyAppearance(document.documentElement, next);
     syncChip(next, apiKey);
+    announceSettings();
   }
 
   function pickMode(choice: ModeChoice): void {
@@ -262,6 +291,32 @@ export default function SettingsPanel() {
     setApiKey(value);
     saveApiKey(window.sessionStorage, value);
     syncChip(settings, value);
+  }
+
+  function addModelPreset(): void {
+    if (settings.modelPresets.length >= MODEL_PRESET_LIMIT) return;
+    const id = 'm-' + Date.now().toString(36);
+    update({ modelPresets: [...settings.modelPresets, { id, label: '', model: '' }] });
+  }
+
+  function patchModelPreset(id: string, patch: Partial<ModelPreset>): void {
+    update({
+      modelPresets: settings.modelPresets.map((preset) =>
+        preset.id === id ? { ...preset, ...patch } : preset,
+      ),
+    });
+  }
+
+  function removeModelPreset(id: string): void {
+    update({ modelPresets: settings.modelPresets.filter((preset) => preset.id !== id) });
+  }
+
+  function commitEffortPreset(id: keyof EffortPresets, value: number): void {
+    update({
+      effortPresets: { ...settings.effortPresets, [id]: value },
+      ...(settings.effort === id ? { maxOutputTokens: value } : {}),
+    });
+    toast.success('努力预设已保存');
   }
 
   function clearHistory(): void {
@@ -380,6 +435,60 @@ export default function SettingsPanel() {
               />
             </FieldRow>
 
+            <Block
+              title="模型预设"
+              description={`同一个端点下常用的模型名，最多 ${MODEL_PRESET_LIMIT} 个；对话输入框旁的菜单可以直接切换。`}
+            >
+              <div className="flex flex-col gap-2">
+                {settings.modelPresets.map((preset) => (
+                  <div key={preset.id} className="flex items-center gap-2">
+                    <Input
+                      aria-label="预设名称"
+                      className="w-28"
+                      maxLength={24}
+                      placeholder="名称"
+                      spellCheck={false}
+                      value={preset.label}
+                      onChange={(event) =>
+                        patchModelPreset(preset.id, { label: event.target.value })
+                      }
+                    />
+                    <Input
+                      aria-label="预设模型名"
+                      autoComplete="off"
+                      className="flex-1"
+                      placeholder="gpt-4o-mini"
+                      spellCheck={false}
+                      value={preset.model}
+                      onChange={(event) =>
+                        patchModelPreset(preset.id, { model: event.target.value })
+                      }
+                    />
+                    <Button
+                      aria-label={`删除预设${preset.label || preset.model}`}
+                      size="icon-sm"
+                      type="button"
+                      variant="ghost"
+                      onClick={() => removeModelPreset(preset.id)}
+                    >
+                      <XIcon />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  className="w-fit"
+                  disabled={settings.modelPresets.length >= MODEL_PRESET_LIMIT}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                  onClick={addModelPreset}
+                >
+                  <PlusIcon data-icon="inline-start" />
+                  添加模型预设
+                </Button>
+              </div>
+            </Block>
+
             <FieldRow
               id="set-key"
               title="API key"
@@ -429,7 +538,7 @@ export default function SettingsPanel() {
             <Row
               htmlFor="set-output"
               title="输出预算"
-              description="回复最多生成这么多 token。推理型端点会先用预算思考，太小会在正文中间截断。"
+              description="回复最多生成这么多 token。推理型端点会先用预算思考，太小会在正文中间截断。直接改这里会切到「自定义」。"
             >
               <div className="flex items-center gap-2">
                 <TokenField
@@ -438,7 +547,7 @@ export default function SettingsPanel() {
                   min={OUTPUT_MIN}
                   max={OUTPUT_MAX}
                   onCommit={(value) => {
-                    update({ maxOutputTokens: value });
+                    update({ maxOutputTokens: value, effort: 'custom' });
                     toast.success('输出预算已保存');
                   }}
                 />
@@ -463,6 +572,27 @@ export default function SettingsPanel() {
                   }}
                 />
                 <span className="text-sm text-muted-foreground">tokens</span>
+              </div>
+            </Row>
+
+            <Row
+              title="努力预设"
+              description="轻 / 标准 / 深入三档各用多少输出 token；对话输入框旁的「努力」菜单随手切换，选中哪档就按哪档的预算走。"
+            >
+              <div className="flex flex-col gap-2">
+                {(['light', 'standard', 'deep'] as const).map((id) => (
+                  <div key={id} className="flex items-center gap-2">
+                    <span className="w-10 text-sm text-muted-foreground">{EFFORT_LABEL[id]}</span>
+                    <TokenField
+                      id={`set-effort-${id}`}
+                      max={OUTPUT_MAX}
+                      min={OUTPUT_MIN}
+                      value={settings.effortPresets[id]}
+                      onCommit={(value) => commitEffortPreset(id, value)}
+                    />
+                    <span className="text-sm text-muted-foreground">tokens</span>
+                  </div>
+                ))}
               </div>
             </Row>
           </Section>
