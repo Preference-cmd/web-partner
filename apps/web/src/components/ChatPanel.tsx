@@ -39,15 +39,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { getChatController } from '@/lib/chat/controller';
 import { QUICK_ACTIONS } from '@/lib/chat/demo';
+import { EMOTION_LABEL } from '@/lib/chat/emotion';
 import { applyAppearance, loadSettings, readApiKey, resolveMode } from '@/lib/chat/settings';
 import type { Message as ChatMessage, ChatMode, Emotion } from '@/lib/chat/types';
-
-const EMOTION_LABEL: Record<Emotion, string> = {
-  idle: '平静',
-  happy: '开心',
-  shy: '害羞',
-  sleepy: '困了',
-};
 
 const EMOTION_DOT: Record<Emotion, string> = {
   idle: 'bg-muted-foreground',

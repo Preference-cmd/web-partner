@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CHAT_KEY, type ChatSnapshot, createChatStorage } from './chat-storage';
-import { createChatController, SYSTEM_PROMPT } from './controller';
+import { type ChatLog, createChatController, SYSTEM_PROMPT } from './controller';
 import { DEMO_POOL, GREETING } from './demo';
 import { DEFAULT_SETTINGS, type Settings, type StringStorage } from './settings';
 import type { ChatRequest, StreamTransport } from './transport';
@@ -42,7 +42,7 @@ function makeHarness(options: HarnessOptions = {}) {
   const storage = createChatStorage(raw);
   const writes: ChatSnapshot[] = [];
   const requests: ChatRequest[] = [];
-  const logs: string[] = [];
+  const entries: ChatLog[] = [];
   let ids = 0;
   const transport: StreamTransport = (request, signal, onDelta) => {
     requests.push(request);
@@ -71,14 +71,15 @@ function makeHarness(options: HarnessOptions = {}) {
       return 'm' + ids;
     },
     random: options.random ?? (() => 0),
-    onLog: (line) => logs.push(line),
+    onLog: (entry) => entries.push(entry),
   });
   return {
     controller,
     raw,
     writes,
     requests,
-    logs,
+    entries,
+    logs: () => entries.map((entry) => entry.text),
     last: () => controller.store.getState().messages.at(-1),
   };
 }
@@ -139,6 +140,7 @@ describe('chat controller', () => {
     expect(reply?.source).toBe('model');
     expect(reply?.content).toBe('你好呀。');
     expect(reply?.emotion).toBe('happy');
+    expect(run.entries.at(-1)?.source).toBe('model');
   });
 
   it('drops the oldest turns once the context window is full', async () => {
@@ -184,7 +186,7 @@ describe('chat controller', () => {
     expect(reply?.source).toBe('fallback');
     expect(reply?.status).toBe('done');
     expect(reply?.content.length).toBeGreaterThan(0);
-    expect(run.logs.length).toBeGreaterThan(0);
+    expect(run.entries.some((entry) => entry.source === 'fallback')).toBe(true);
   });
 
   it('falls back when the model returns an empty stream', async () => {
@@ -199,7 +201,7 @@ describe('chat controller', () => {
     const reply = run.last();
     expect(reply?.source).toBe('fallback');
     expect(reply?.content.length).toBeGreaterThan(0);
-    expect(run.logs.some((line) => line.includes('no text'))).toBe(true);
+    expect(run.entries.some((entry) => entry.text.includes('模板'))).toBe(true);
   });
 
   it('keeps the received text when the stream breaks', async () => {
@@ -364,5 +366,41 @@ describe('chat controller', () => {
     await flush();
     expect(aborted).toBe(true);
     expect(run.controller.store.getState().messages).toHaveLength(1);
+    expect(run.entries.some((entry) => entry.source === 'system')).toBe(true);
+  });
+
+  it('records the turn and the reply for the debug panel', async () => {
+    const run = makeHarness();
+    run.controller.hydrate();
+    run.controller.send('今天好累');
+    await run.controller.settled();
+    expect(run.entries[0]).toEqual({ source: 'user', text: '今天好累' });
+    expect(run.entries.at(-1)?.source).toBe('demo');
+    expect(run.entries.at(-1)?.text).toContain('回复完成');
+  });
+
+  it('marks a quick reply apart from typed turns', async () => {
+    const run = makeHarness();
+    run.controller.hydrate();
+    run.controller.quickReply('摸摸头');
+    await run.controller.settled();
+    expect(run.entries[0]?.source).toBe('quick');
+  });
+
+  it('logs a forced emotion as a debug line', () => {
+    const run = makeHarness();
+    run.controller.hydrate();
+    run.controller.forceEmotion('sleepy');
+    expect(run.controller.store.getState().emotion).toBe('sleepy');
+    expect(run.entries.at(-1)).toEqual({ source: 'debug', text: '情绪切到困了' });
+  });
+
+  it('clips a long line before it reaches the panel', () => {
+    const run = makeHarness();
+    run.controller.hydrate();
+    run.controller.send('很'.repeat(80));
+    const line = run.entries[0]?.text ?? '';
+    expect(line).toHaveLength(49);
+    expect(line.endsWith('…')).toBe(true);
   });
 });

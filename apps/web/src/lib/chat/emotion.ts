@@ -1,5 +1,13 @@
 import type { Emotion } from './types';
 
+/** One label per mood, shared by the chat header, the panel and the log. */
+export const EMOTION_LABEL: Readonly<Record<Emotion, string>> = {
+  idle: '平静',
+  happy: '开心',
+  shy: '害羞',
+  sleepy: '困了',
+};
+
 const SIGNALS: ReadonlyArray<readonly [Emotion, RegExp]> = [
   ['shy', /害羞|脸红|不好意思|羞|别夸|讨厌啦|摸摸|抱抱/u],
   ['sleepy', /困|睡|累|晚安|眯|休息|熬夜|深夜|哈欠/u],

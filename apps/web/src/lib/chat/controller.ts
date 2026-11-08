@@ -1,7 +1,8 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
+import { type LogSource, pushLog } from '../debug/log';
 import { type ChatStorage, createChatStorage } from './chat-storage';
 import { GREETING, pickDemoReply } from './demo';
-import { judgeEmotion } from './emotion';
+import { EMOTION_LABEL, judgeEmotion } from './emotion';
 import { createStreamParser } from './parser';
 import { DEFAULT_SETTINGS, loadSettings, readApiKey, resolveMode, type Settings } from './settings';
 import { type ChatRequest, type StreamTransport, streamChat } from './transport';
@@ -21,6 +22,12 @@ export interface ChatConfig {
   apiKey: string;
 }
 
+/** One line for the debug panel; the controller owns what happened, the panel owns display. */
+export interface ChatLog {
+  source: LogSource;
+  text: string;
+}
+
 export interface ChatControllerDeps {
   storage?: ChatStorage;
   getConfig?: () => ChatConfig;
@@ -29,7 +36,7 @@ export interface ChatControllerDeps {
   now?: () => number;
   newId?: () => string;
   random?: () => number;
-  onLog?: (line: string) => void;
+  onLog?: (entry: ChatLog) => void;
 }
 
 export interface ChatController {
@@ -41,6 +48,8 @@ export interface ChatController {
   clear: () => void;
   /** Back to a single greeting, as if the app had just opened. */
   restart: () => void;
+  /** Debug control: skip the model and the classifier. */
+  forceEmotion: (emotion: Emotion) => void;
   settled: () => Promise<void>;
 }
 
@@ -104,7 +113,16 @@ export function createChatController(deps: ChatControllerDeps = {}): ChatControl
   const now = deps.now ?? Date.now;
   const newId = deps.newId ?? defaultId;
   const random = deps.random ?? Math.random;
-  const log = deps.onLog ?? (() => undefined);
+  const onLog = deps.onLog ?? (() => undefined);
+
+  function clip(text: string, max = 48): string {
+    const chars = Array.from(text);
+    return chars.length > max ? `${chars.slice(0, max).join('')}…` : text;
+  }
+
+  function record(source: LogSource, text: string): void {
+    onLog({ source, text: clip(text) });
+  }
   const getConfig = deps.getConfig ?? (() => ({ settings: { ...DEFAULT_SETTINGS }, apiKey: '' }));
 
   const store = createStore<ChatState>(() => ({
@@ -163,6 +181,9 @@ export function createChatController(deps: ChatControllerDeps = {}): ChatControl
 
   function finalize(id: string, source: MessageSource, status: 'done' | 'aborted' = 'done'): void {
     patch(id, { status, source });
+    const reply = store.getState().messages.find((message) => message.id === id);
+    if (status === 'aborted') record('system', '回复已中断');
+    else record(source, `回复完成 · ${Array.from(reply?.content ?? '').length} 字`);
     settle();
   }
 
@@ -203,7 +224,7 @@ export function createChatController(deps: ChatControllerDeps = {}): ChatControl
       finalize(replyId, 'demo');
     } catch (error) {
       if (signal.aborted || turnId !== turn) return;
-      log(`demo stream failed: ${String(error)}`);
+      record('system', `演示流断了：${String(error)}`);
       finalize(replyId, 'demo');
     }
   }
@@ -233,7 +254,7 @@ export function createChatController(deps: ChatControllerDeps = {}): ChatControl
         if (turnId !== turn || signal.aborted) return;
         appendText(replyId, chunk);
       },
-      onMissingHeader: () => log('reply had no EMOTION tag; judged locally'),
+      onMissingHeader: () => record('system', '回复没有情绪标签，按内容判断'),
     });
     try {
       await transport(request, signal, (chunk) => parser.push(chunk));
@@ -242,7 +263,7 @@ export function createChatController(deps: ChatControllerDeps = {}): ChatControl
       const current = store.getState().messages.find((message) => message.id === replyId);
       if (!current?.content) {
         // An upstream error can surface as an empty stream with a 200 status.
-        log('model returned no text; using a template');
+        record('fallback', '模型没有返回文本，改用模板');
         const fallback = pickDemoReply(judgeEmotion(userText), previousReply(replyId), random);
         const emotion = judgeEmotion(fallback);
         patch(replyId, { content: fallback, emotion });
@@ -257,11 +278,11 @@ export function createChatController(deps: ChatControllerDeps = {}): ChatControl
       const current = store.getState().messages.find((message) => message.id === replyId);
       if (current?.content) {
         const emotion = current.emotion ?? judgeEmotion(current.content);
-        log(`model stream failed after ${current.content.length} chars: ${String(error)}`);
+        record('fallback', `模型流断了（已收到 ${current.content.length} 字）：${String(error)}`);
         patch(replyId, { emotion });
         setEmotion(emotion);
       } else {
-        log(`model request failed; using a template: ${String(error)}`);
+        record('fallback', `模型请求失败，改用模板：${String(error)}`);
         const fallback = pickDemoReply(judgeEmotion(userText), previousReply(replyId), random);
         const emotion = judgeEmotion(fallback);
         patch(replyId, { content: fallback, emotion });
@@ -274,6 +295,7 @@ export function createChatController(deps: ChatControllerDeps = {}): ChatControl
   function startTurn(raw: string, local: boolean): void {
     const text = raw.trim();
     if (!text) return;
+    record(local ? 'quick' : 'user', text);
     abortCurrent();
     const config = getConfig();
     const useModel = !local && resolveMode(config.settings, config.apiKey) === 'live';
@@ -354,6 +376,11 @@ export function createChatController(deps: ChatControllerDeps = {}): ChatControl
     store.setState({ messages: [], status: 'idle', abort: null, pendingId: null, emotion: 'idle' });
   }
 
+  function forceEmotion(emotion: Emotion): void {
+    setEmotion(emotion);
+    record('debug', `情绪切到${EMOTION_LABEL[emotion]}`);
+  }
+
   function restart(): void {
     abortCurrent();
     hydrated = true;
@@ -375,6 +402,7 @@ export function createChatController(deps: ChatControllerDeps = {}): ChatControl
     stop: () => abortCurrent(),
     clear,
     restart,
+    forceEmotion,
     settled: () => running ?? Promise.resolve(),
   };
 }
@@ -402,6 +430,7 @@ export function getChatController(): ChatController {
         };
       },
       transport: streamChat,
+      onLog: (entry) => pushLog(entry.source, entry.text),
     });
     if (typeof window !== 'undefined') {
       window.addEventListener('pagehide', () => registry.__partnerChat?.stop());
