@@ -9,9 +9,10 @@ pnpm workspace: deployable apps live in `apps/*`, shared code in `packages/*`.
 
 The stack and the character renderer are settled in the local proposal and
 approved; `apps/web` implements the shell, the canvas character, the demo chat,
-the settings page and the live proxy against it. `Status: proposed` means the proposal is still open —
-build against it until its `## Accept` items are checked with evidence, then
-flip to `implemented`. The workflow below is stack-neutral.
+the conversation list, the settings page, the debug drawer and the live proxy
+against it. `Status: proposed` means the proposal is still open — build against
+it until its `## Accept` items are checked with evidence, then flip to
+`implemented`. The workflow below is stack-neutral.
 
 Proposals and their research live under `.agents/pipelines/` and are **not part
 of this repository**: a fresh clone has none of it. This file, `README.md` and
@@ -31,9 +32,10 @@ AGENTS.md              # this file
 CLAUDE.md -> AGENTS.md
 ```
 
-`node_modules/`, `dist/`, `.wrangler/`, `coverage/` and `.dev.vars*` are build
-output or local secrets. None of them are committed. `.agents/` sits outside the
-repository by design (see Proposals below).
+`node_modules/`, `dist/`, `.wrangler/`, `.astro/`, `coverage/`, `.env*` and
+`.dev.vars*` are build output or local secrets. None of them are committed; the
+one exception is `apps/web/.dev.vars.example`, which documents the shape without
+values. `.agents/` sits outside the repository by design (see Proposals below).
 
 ## Fact sources
 
@@ -51,6 +53,9 @@ Read a fact here before asserting it — never from memory:
 | CI jobs and gates                             | `.github/workflows/ci.yml`                        |
 | Worker name, routes, bindings, compatibility  | `apps/*/wrangler.jsonc`                           |
 | deploy steps and secrets                      | `.github/workflows/deploy.yml`, `apps/*/wrangler.jsonc` |
+| browser storage keys, limits and migration    | `apps/web/src/lib/chat/session-storage.ts`, `apps/web/src/lib/chat/settings.ts`, `apps/web/src/lib/debug/prefs.ts` |
+| chat proxy limits and validation              | `apps/web/src/lib/chat/proxy.ts`                  |
+| character art license                         | `NOTICE.md`, `apps/web/public/character/ATTRIBUTION.md` |
 | unfinished decisions and their reasoning      | `.agents/pipelines/proposals/` (local)            |
 | what is in scope, and what counts as done     | `.agents/pipelines/proposals/` (local)            |
 
@@ -161,10 +166,21 @@ in `.agents/pipelines/WORKFLOW.md`; the class table is in
 - Local development runs the app's `dev` script, which is `wrangler dev`
   (or the framework's dev server with the Cloudflare plugin) — the same
   runtime CI deploys, not a Node approximation.
-- `deploy.yml` is manual (`workflow_dispatch`) and refuses to run until the
-  app's `wrangler.jsonc` exists. It needs repository secrets
+- `apps/web` builds to `dist/client` (static assets) and `dist/server` (the
+  Worker), and `astro build` also writes `.wrangler/deploy/config.json`, which
+  points `wrangler` at `dist/server/wrangler.json`. Both are generated and
+  gitignored, so a deploy needs a build in the same working tree: without it,
+  `wrangler deploy` fails with "Missing entry-point".
+- A build for a named environment needs `CLOUDFLARE_ENV` set while building
+  (`CLOUDFLARE_ENV=staging astro build`). Without it, `wrangler deploy --env`
+  silently targets the top-level Worker, so a staging run can overwrite
+  production.
+- `deploy.yml` is manual (`workflow_dispatch`), checks that the app has a
+  wrangler configuration, and then deploys. It needs repository secrets
   `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. Production deploys are
   deliberate actions, never a side effect of a push.
+- `apps/web` has no runtime secret: `/api/chat` forwards the endpoint and key
+  the browser sends (bring your own key).
 - `compatibility_date` in `wrangler.jsonc` moves forward in its own commit,
   with the reason (a binding or API it enables), not bundled into a feature.
 

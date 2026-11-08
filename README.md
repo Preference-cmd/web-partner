@@ -2,30 +2,35 @@
 
 A web application deployed to Cloudflare Workers.
 
-**Status: demo chat, settings, a live proxy and a drawn character.**
-`apps/web` carries the Astro app — sidebar, full-bleed character stage,
-floating chat panel and the debug drawer — plus React islands built on
-shadcn/ui and AI Elements: a chat island that streams demo replies, keeps
-local history and tags each reply with an emotion, a settings island at
-`/settings` that holds the endpoint, the session-only key, the mode and the
-panel's appearance, the sidebar and the debug panel. The sidebar lists the
-conversations kept on this device (up to 20, 100 messages each): start,
-switch, rename inline, delete, and "新对话" no longer needs a confirmation. `POST /api/chat` streams
-from a user-supplied OpenAI-compatible endpoint through the Vercel AI SDK.
-The character is four 512×512 poses drawn on a 2D canvas: the chat's emotion
-picks the pose, the figure breathes and sways, and it holds each mood for two
-seconds before the next crossfade. The debug drawer docks on the right and
-reports the turn, the drawn pose, the renderer, FPS and the mode; it keeps the
-last 50 log lines, forces a mood, switches four stage lights and two draw
-modes, and puts a line above the character. Its open state, light and renderer
-persist in `partner.panel.v1`; the log is memory only.
+**Status: a chat demo with a drawn character.**
+`apps/web` is an Astro app — a static shell, React islands on shadcn/ui and AI
+Elements, and a Canvas 2D character on a full-bleed stage.
+
+- **Chat** at `/`: demo replies stream token by token; once an
+  OpenAI-compatible endpoint and key are set in settings, replies come from
+  `POST /api/chat` instead, and a failed upstream falls back to a template.
+- **Conversations** in the sidebar: up to 20 sessions of 100 messages each,
+  kept on this device — start, switch, rename inline, delete.
+- **Character stage**: four poses picked by the reply's emotion; the figure
+  breathes and sways and holds each mood for two seconds before the next
+  crossfade.
+- **Settings** at `/settings`: endpoint, model, mode, the session-only key and
+  the chat panel's appearance.
+- **Debug drawer** on the chat stage: the turn, drawn pose, renderer, FPS and
+  mode, the last 50 log lines, a forced mood, four stage lights, two draw modes
+  and a line above the character.
+
+There is no account system: `/login` is a placeholder page, and no request
+leaves the browser except the chat call to the endpoint you configure.
+
 The stack decision lives in the local proposal under `.agents/pipelines/`,
 which is not part of this repository.
 
 ## Getting started
 
-```bash
+```text
 pnpm install          # installs dependencies and the git hooks
+pnpm dev              # Astro dev server on the Workers runtime
 pnpm check            # the gate: lint, typecheck, test, build
 ```
 
@@ -38,8 +43,20 @@ apps/web     Astro app — static pages, React islands (sidebar, chat, settings,
 packages/*   code shared between apps (not created yet)
 ```
 
-Proposals and their research notes are working material kept outside the
-repository, under `.agents/pipelines/` on the machine that wrote them.
+## What stays in this browser
+
+The server stores nothing; every key below lives on this device.
+
+| key | contents |
+| --- | --- |
+| `partner.sessions.v1` | conversation index: the active session, titles and timestamps |
+| `partner.session.<id>.v1` | one transcript: messages and a marker for an interrupted reply |
+| `partner.settings.v1` | endpoint, model, mode and the chat panel's appearance |
+| `partner.secret.v1` | the API key, in `sessionStorage`: gone when the tab closes |
+| `partner.panel.v1` | debug drawer: open state, light and renderer |
+
+`partner.chat.v1` is the old single-conversation key: it is read once,
+migrated into a session and removed.
 
 ## Working on it
 
@@ -53,9 +70,18 @@ CI repeats the full gate and runs commitlint over the pushed range.
 
 ## Deploying
 
-`Deploy` (`.github/workflows/deploy.yml`) is manual and requires the
-`CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository secrets. It deploys `apps/web` (Worker `partner-web`) once
-the secrets are set.
+`Deploy` (`.github/workflows/deploy.yml`) is manual and never runs on a
+push: it checks the app, builds it and uploads `apps/web` as the Worker
+`partner-web`. It needs the repository secrets `CLOUDFLARE_API_TOKEN` and
+`CLOUDFLARE_ACCOUNT_ID`.
+
+The Worker holds no runtime secret: the chat proxy forwards the endpoint and
+key the browser sends (bring your own key).
+
+A release is ready when `pnpm check` passes and the deployed Worker answers
+`/` and `/settings/` with 200, serves the character art as `image/webp`, and
+rejects an empty `POST /api/chat` with 400. `wrangler rollback` returns to the
+previous version.
 
 ## License
 
