@@ -16,8 +16,10 @@ user-visible changes. This file describes how the repository is worked on. A
 pnpm workspace holds the app; `packages/*` is reserved for code shared between
 apps and is added when a second unit needs it.
 
-Out of scope until a proposal says otherwise: accounts, uploads, markdown
-rendering, a model picker, server-side history, analytics.
+Out of scope until a proposal says otherwise: accounts, markdown rendering,
+server-side history, analytics. Attachments stay client-side — they ride along
+with one request and are never stored — and model presets are extra names for
+the same endpoint, not a provider picker.
 
 ## Layout
 

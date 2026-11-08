@@ -96,7 +96,7 @@ import type {
 import { announceSettings, requestSettings, SETTINGS_CHANGED_EVENT } from '@/lib/ui/open-settings';
 
 /** How much of the figure must stay above the panel before growth stops. */
-const TARGET_VISIBLE = { narrow: 0.6, wide: 0.55 };
+const TARGET_VISIBLE = { narrow: 0.6, wide: 0.56 };
 /** The stage can rise this far before it would leave the top of the screen. */
 const LIFT_CAP = 250;
 /** Below this the panel stops being a conversation. */
@@ -229,6 +229,7 @@ export default function ChatPanel() {
   const dragRef = useRef<{ startY: number; startHeight: number } | null>(null);
   // The sync callback is created once; it reads the pinned height through this ref.
   const heightRef = useRef<number | null>(null);
+  const collapsedRef = useRef(false);
 
   useEffect(() => {
     controller.hydrate();
@@ -306,7 +307,8 @@ export default function ChatPanel() {
         narrow ? 520 : 720,
         Math.max(MIN_PANEL, keepVisible),
       );
-      const pinned = heightRef.current;
+      // Collapsing drops the pin so the panel can shrink to its header; expanding restores it.
+      const pinned = collapsedRef.current ? null : heightRef.current;
       const conversation = node.querySelector<HTMLElement>('[aria-label="对话记录"]');
       const content = conversation?.firstElementChild?.firstElementChild as HTMLElement | null;
       if (conversation && pinned !== null) {
@@ -357,7 +359,8 @@ export default function ChatPanel() {
 
   // Collapsing hides the list (display:none), which is not a resize the observer can see.
   useEffect(() => {
-    if (!collapsed) syncRef.current?.();
+    collapsedRef.current = collapsed;
+    syncRef.current?.();
   }, [collapsed]);
 
   // Arriving from another page with ?new=1: a new conversation is not destructive any more,
@@ -416,6 +419,9 @@ export default function ChatPanel() {
     if (room <= 0) {
       setAttachmentError(`每条消息最多 ${ATTACHMENT_LIMIT} 个附件`);
       return;
+    }
+    if (list.length > room) {
+      setAttachmentError(`每条消息最多 ${ATTACHMENT_LIMIT} 个附件，已收下前 ${room} 个`);
     }
     let total = attachments.reduce((sum, item) => sum + item.size, 0);
     for (const file of list.slice(0, room)) {
@@ -584,7 +590,7 @@ export default function ChatPanel() {
       style={{
         backgroundColor:
           'color-mix(in oklab, var(--card) calc(var(--panel-alpha, 0.62) * 100%), transparent)',
-        ...(narrow || manualHeight === null ? {} : { height: `${manualHeight}px` }),
+        ...(narrow || collapsed || manualHeight === null ? {} : { height: `${manualHeight}px` }),
       }}
       className="absolute bottom-3 left-1/2 z-20 flex max-h-[min(52vh,520px)] w-[min(760px,calc(100%-1.5rem))] -translate-x-1/2 flex-col overflow-hidden rounded-xl border text-card-foreground shadow-2xl backdrop-blur-xl md:bottom-6 md:max-h-[min(72vh,720px)] md:w-[min(760px,calc(100%-3rem))]"
     >
