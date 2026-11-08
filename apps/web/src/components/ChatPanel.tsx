@@ -43,6 +43,14 @@ import { EMOTION_LABEL } from '@/lib/chat/emotion';
 import { applyAppearance, loadSettings, readApiKey, resolveMode } from '@/lib/chat/settings';
 import type { Message as ChatMessage, ChatMode, Emotion } from '@/lib/chat/types';
 
+/** How much of the figure must stay above the panel before growth stops. */
+const TARGET_VISIBLE = { narrow: 0.6, wide: 0.55 };
+/** The stage can rise this far before it would leave the top of the screen. */
+const LIFT_CAP = 250;
+/** Below this the panel stops being a conversation. */
+const MIN_PANEL = 220;
+const PANEL_GAP = { narrow: 12, wide: 24 };
+
 const EMOTION_DOT: Record<Emotion, string> = {
   idle: 'bg-muted-foreground',
   happy: 'bg-amber-400',
@@ -142,7 +150,26 @@ export default function ChatPanel() {
     const root = document.documentElement;
     const sync = (): void => {
       const narrow = window.innerWidth < 768;
-      const cap = Math.min(root.clientHeight * (narrow ? 0.52 : 0.72), narrow ? 520 : 720);
+      const viewport = root.clientHeight;
+      const gap = narrow ? PANEL_GAP.narrow : PANEL_GAP.wide;
+      const visibleRatio = narrow ? TARGET_VISIBLE.narrow : TARGET_VISIBLE.wide;
+      const stage = document.querySelector<HTMLElement>('[data-character-stage]');
+      const stageHeight = stage?.offsetHeight ?? 0;
+      // A taller panel only stays clear of the figure while the stage can give back the
+      // difference. Past this height the panel starts covering the face, so the content
+      // stops growing and scrolls instead.
+      // Never lift the figure past the top edge: 14% floor + figure height + lift must fit.
+      const liftCap =
+        stageHeight > 0 ? Math.min(LIFT_CAP, Math.max(0, viewport * 0.86 - stageHeight)) : 0;
+      const keepVisible =
+        stageHeight > 0
+          ? liftCap + viewport * 0.14 + stageHeight * (1 - visibleRatio) - gap
+          : Number.POSITIVE_INFINITY;
+      const cap = Math.min(
+        viewport * (narrow ? 0.52 : 0.72),
+        narrow ? 520 : 720,
+        Math.max(MIN_PANEL, keepVisible),
+      );
       const conversation = node.querySelector<HTMLElement>('[aria-label="对话记录"]');
       const content = conversation?.firstElementChild?.firstElementChild as HTMLElement | null;
       if (conversation && content) {
@@ -159,10 +186,14 @@ export default function ChatPanel() {
         if (conversation.style.height !== target) conversation.style.height = target;
       }
       const height = node.offsetHeight;
-      // Phones have far less stage above the panel, so the figure rises sooner.
-      const lift = narrow
-        ? Math.max(0, Math.min(250, height - root.clientHeight * 0.3))
-        : Math.max(0, Math.min(250, height - root.clientHeight * 0.46 + 24));
+      // Solve for the lift that keeps `target` of the figure above the panel top.
+      const lift =
+        stageHeight > 0
+          ? Math.max(
+              0,
+              Math.min(liftCap, height + gap - viewport * 0.14 - stageHeight * (1 - visibleRatio)),
+            )
+          : 0;
       root.style.setProperty('--panel-h', `${height}px`);
       root.style.setProperty('--panel-lift', `${Math.round(lift)}px`);
     };

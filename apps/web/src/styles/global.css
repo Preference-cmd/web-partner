@@ -72,13 +72,15 @@
       transform: translateY(-16px);
     }
   }
+  /* The aura centres itself with Tailwind's translate utility; repeating the -50%
+     here would apply it twice and push the light 210px off the figure. */
   @keyframes breathe {
     0%,
     100% {
-      transform: translateX(-50%) scale(1);
+      transform: scale(1);
     }
     50% {
-      transform: translateX(-50%) scale(1.015);
+      transform: scale(1.015);
     }
   }
 }

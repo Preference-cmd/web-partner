@@ -63,6 +63,15 @@ change states its migration at the top of the release it ships in.
 - A stage bubble: one line above the character, printed by the debug drawer,
   gone after ten seconds, without touching the chat, the model or the mood.
 
+### Fixed
+
+- The stage light sits under the character instead of 210 px to her left: the
+  aura's breathing keyframe no longer repeats the centring transform Tailwind
+  already applies.
+- A longer conversation no longer buries the character: the panel stops growing
+  once the figure would fall below 55% visible on desktop and 60% on phones, and
+  scrolls the transcript instead. The figure also stops at the top edge instead
+  of sliding under the browser chrome.
 ### Changed
 
 - Copy that described unfinished plans is gone: the login page states that the
