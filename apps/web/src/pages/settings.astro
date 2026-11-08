@@ -1,8 +1,22 @@
 ---
-import SettingsPanel from "../components/SettingsPanel";
-import PageShell from "../layouts/PageShell.astro";
+// Settings is a dialog on the chat page now; keep old links working.
+import "../styles/global.css";
 ---
 
-<PageShell title="设置 · 伴侣小生命" wide>
-  <SettingsPanel client:load />
-</PageShell>
+<!doctype html>
+<html lang="zh-CN" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="refresh" content="0; url=/?settings=1" />
+    <title>设置 · 伴侣小生命</title>
+  </head>
+  <body>
+    <main class="grid min-h-dvh place-items-center p-6 text-sm">
+      <p>
+        设置现在是聊天页上的弹窗。
+        <a class="underline underline-offset-4" href="/?settings=1">打开设置</a>
+      </p>
+    </main>
+  </body>
+</html>

@@ -12,14 +12,9 @@ import type { ChatController } from '@/lib/chat/controller';
 import { describeMode, loadSettings, readApiKey } from '@/lib/chat/settings';
 import type { ChatMode } from '@/lib/chat/types';
 import { useChatController } from '@/lib/chat/use-chat-controller';
-
-const NAV = [
-  { id: 'chat', href: '/', label: '对话', icon: MessageCircleIcon },
-  { id: 'settings', href: '/settings', label: '设置', icon: SettingsIcon },
-] as const;
+import { requestSettings } from '@/lib/ui/open-settings';
 
 interface SidebarProps {
-  active?: 'chat' | 'settings';
   license?: boolean;
 }
 
@@ -38,19 +33,19 @@ function Brand() {
 }
 
 function SidebarBody({
-  active,
   license,
   mode,
   chat,
   onCollapse,
   onNewChat,
+  onSettings,
 }: {
-  active: 'chat' | 'settings';
   license: boolean;
   mode: ChatMode;
   chat: ChatController | null;
   onCollapse?: () => void;
   onNewChat?: () => void;
+  onSettings?: () => void;
 }) {
   return (
     <div className="flex h-full flex-col gap-3 p-3">
@@ -92,32 +87,29 @@ function SidebarBody({
       </Button>
 
       <nav className="flex flex-col gap-1" aria-label="主导航">
-        {NAV.map((item) => (
-          <Button
-            key={item.id}
-            asChild
-            variant={active === item.id ? 'secondary' : 'ghost'}
-            className="w-full justify-start"
-          >
-            <a href={item.href} aria-current={active === item.id ? 'page' : undefined}>
-              <item.icon data-icon="inline-start" />
-              {item.label}
-            </a>
-          </Button>
-        ))}
+        <Button asChild variant="secondary" className="w-full justify-start">
+          <a href="/" aria-current="page">
+            <MessageCircleIcon data-icon="inline-start" />
+            对话
+          </a>
+        </Button>
+        <Button
+          variant="ghost"
+          className="w-full justify-start"
+          onClick={() => {
+            requestSettings();
+            onSettings?.();
+          }}
+        >
+          <SettingsIcon data-icon="inline-start" />
+          设置
+        </Button>
       </nav>
 
       <Separator />
 
       <div className="px-1 text-xs font-medium text-muted-foreground">本机对话</div>
-      {active === 'chat' ? (
-        <SessionList controller={chat} onPick={onNewChat} />
-      ) : (
-        <div className="rounded-md border bg-background/40 p-2.5">
-          <div className="text-xs text-foreground/90">历史保存在这台设备</div>
-          <div className="mt-1 text-xs text-muted-foreground">最多 20 段 · 自动恢复</div>
-        </div>
-      )}
+      <SessionList controller={chat} onPick={onNewChat} />
 
       <div className="mt-auto flex flex-col gap-3">
         <Badge variant="secondary" className="w-fit gap-1.5" data-side-mode data-mode={mode}>
@@ -151,11 +143,11 @@ function SidebarBody({
   );
 }
 
-export default function Sidebar({ active = 'chat', license = true }: SidebarProps) {
+export default function Sidebar({ license = true }: SidebarProps) {
   const [mode, setMode] = useState<ChatMode>('demo');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const chat = useChatController(active === 'chat');
+  const chat = useChatController();
 
   useEffect(() => {
     setMode(readMode());
@@ -196,7 +188,6 @@ export default function Sidebar({ active = 'chat', license = true }: SidebarProp
           aria-label="侧边栏"
         >
           <SidebarBody
-            active={active}
             license={license}
             mode={mode}
             chat={chat}
@@ -218,11 +209,11 @@ export default function Sidebar({ active = 'chat', license = true }: SidebarProp
         >
           <SheetTitle className="sr-only">侧边栏</SheetTitle>
           <SidebarBody
-            active={active}
             license={license}
             mode={mode}
             chat={chat}
             onNewChat={() => setDrawerOpen(false)}
+            onSettings={() => setDrawerOpen(false)}
           />
         </SheetContent>
       </Sheet>

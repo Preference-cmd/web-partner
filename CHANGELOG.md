@@ -29,22 +29,22 @@ change states its migration at the top of the release it ships in.
   persists in this browser (`partner.chat.v1`, 100 messages). Replies are
   signed with the character name; only a fallback carries a `模板回复` mark.
   The live path falls back to a template until `/api/chat` exists.
-- Client-side navigation between `/` and `/settings` (`ClientRouter`), so a
-  running reply survives the page change; a full reload marks it interrupted.
+- Client-side navigation (`ClientRouter`) keeps a running reply alive across a
+  page change; a full reload marks it interrupted.
 - `POST /api/chat`: streams a reply from a user-supplied OpenAI-compatible
   https endpoint through the Vercel AI SDK. The route rejects non-https, IP
   literal, `localhost`, `.local` and `.internal` targets, cross-origin
   callers, bodies over 512 KB and turns over 201 messages; it never logs the key.
   The browser receives a plain text chunk stream, and an upstream failure that
   arrives as an empty stream falls back to a template.
-- A settings island on `/settings`, laid out as a sectioned page with a side
-  nav: connection (endpoint, model, key, direct toggle), model call (output
-  budget 64–4096 tokens, default 1024; context window 1000–32000 estimated
-  tokens, default 4000), mode (demo / live / forced demo, with the reason the
-  current one is in force), appearance (panel opacity 0.4–0.9, motion
-  preference), per-item data clearing and an about block. Every change saves
-  as it is made, the sidebar mode chip follows it, and the chat page picks it
-  up on the next message.
+- A settings dialog over the chat (sidebar → 设置, or `/?settings=1`), laid
+  out as a sectioned window with a side nav: connection (endpoint, model, key,
+  direct toggle), model call (output budget 64–4096 tokens, default 1024;
+  context window 1000–32000 estimated tokens, default 4000), mode (demo /
+  live / forced demo, with the reason the current one is in force),
+  appearance (panel opacity 0.4–0.9, motion preference), per-item data
+  clearing and an about block. Every change saves as it is made, the sidebar
+  mode chip follows it, and the chat page picks it up on the next message.
 - A character on the stage: four 512×512 poses (idle / happy / shy / sleepy)
   drawn on a Canvas 2D canvas. The chat's emotion picks the pose, the figure
   breathes in 28 slices, sways 0.6° around its feet, holds each mood for two
@@ -68,6 +68,11 @@ change states its migration at the top of the release it ships in.
 - Copy that described unfinished plans is gone: the login page states that the
   demo has no account system, and the settings page no longer shows a lighting
   row that only pointed at the debug drawer.
+- Settings is a dialog now: the sidebar 设置 button and the debug drawer open
+  it over the chat with a blurred backdrop, without leaving the conversation,
+  and Esc, the close button or the backdrop dismiss it. `/settings` stays as a
+  static redirect to `/?settings=1`, so old links keep working; the chat page
+  opens the dialog when that parameter is present.
 - The deploy workflow now targets the single `partner-web` Worker and needs
   only `CLOUDFLARE_API_TOKEN`: the `environment` input and `--env` are gone, and
   `CLOUDFLARE_ACCOUNT_ID` is optional when the token can see one account.
@@ -85,8 +90,7 @@ change states its migration at the top of the release it ships in.
   link still works without JavaScript through `/?new=1`. "清空" empties the
   open conversation but keeps it in the list, while "清空对话历史" in settings
   removes every conversation and starts a fresh one.
-- The session list loads the chat controller lazily, so the settings page keeps
-  its own bundle.
+
 - `partner.settings.v1` also stores `panelAlpha` and `motion`. The addition is
   compatible: a record without them loads with the defaults (0.62, system), so
   no migration is needed. The API key still lives only in `sessionStorage`

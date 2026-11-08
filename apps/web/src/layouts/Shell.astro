@@ -20,7 +20,7 @@ const { title = "伴侣小生命" } = Astro.props;
   </head>
   <body class="overflow-hidden">
     <div class="flex h-dvh overflow-hidden">
-      <Sidebar client:load active="chat" />
+      <Sidebar client:load />
       <main class="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <div class="stage-backdrop absolute inset-0"></div>
         <div class="stage-vignette pointer-events-none absolute inset-0"></div>

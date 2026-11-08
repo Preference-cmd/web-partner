@@ -320,13 +320,6 @@ export default function SettingsPanel() {
         </nav>
 
         <div className="flex min-w-0 flex-1 flex-col gap-8">
-          <header className="flex flex-col gap-1">
-            <h1 className="text-2xl font-semibold tracking-tight">设置</h1>
-            <p className="text-sm text-muted-foreground">
-              连接、模型调用、模式与外观都存在这台设备。API key 只留在当前标签页，关掉就没了。
-            </p>
-          </header>
-
           <div
             className="flex items-center gap-2 rounded-lg border bg-card px-4 py-3 text-sm"
             data-mode={status.mode}

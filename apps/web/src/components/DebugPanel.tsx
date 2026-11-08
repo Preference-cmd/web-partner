@@ -33,6 +33,7 @@ import {
   type PanelPrefs,
   savePanelPrefs,
 } from '@/lib/debug/prefs';
+import { requestSettings } from '@/lib/ui/open-settings';
 import { useMediaQuery } from '@/lib/ui/use-media-query';
 
 const EMOTIONS: ReadonlyArray<Emotion> = ['idle', 'happy', 'shy', 'sleepy'];
@@ -359,9 +360,13 @@ export default function DebugPanel() {
         </ToggleGroup>
         <p className="mt-2 text-xs text-muted-foreground">
           端点与密钥在
-          <a href="/settings" className="mx-1 underline underline-offset-2 hover:text-foreground">
-            设置页
-          </a>
+          <button
+            type="button"
+            onClick={requestSettings}
+            className="mx-1 underline underline-offset-2 hover:text-foreground"
+          >
+            设置窗口
+          </button>
           。
         </p>
       </Section>

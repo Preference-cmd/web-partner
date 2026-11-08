@@ -24,9 +24,10 @@ key stay in the browser.
 - **Twenty conversations on this device.** Up to 20 sessions of 100 messages are
   kept in the browser, with switch, inline rename, delete and a one-time
   migration from `partner.chat.v1`.
-- **Settings and a debug drawer.** `/settings` holds the connection, the model
-  call (output budget and context window), mode and appearance, while the drawer
-  exposes the pose, FPS, log lines, forced moods and stage lighting.
+- **Settings and a debug drawer.** A settings dialog over the chat holds the
+  connection, the model call (output budget and context window), mode and
+  appearance, while the drawer exposes the pose, FPS, log lines, forced moods
+  and stage lighting.
 - **Details that matter.** `Cmd/Ctrl+K` or `/` focuses the composer,
   destructive actions ask in dialogs, and the layout becomes sheets on phones.
 
@@ -52,7 +53,7 @@ pnpm check       # lint, typecheck, test, build
 
 ## Bring your own model
 
-1. Open `/settings`.
+1. Open the settings dialog: sidebar → 设置, or `/?settings=1`.
 2. Enter the base URL without `/chat/completions`, the model name and the key.
 3. Switch the mode to 实时; use 直连端点 for a local `http` endpoint or one that
    does not allow CORS.
@@ -70,7 +71,8 @@ than one account. The demo runs at
 <https://partner-web.sq103832.workers.dev>.
 
 A release is ready when `pnpm check` passes and the deployed Worker serves `/`
-and `/settings/` with 200. `wrangler rollback` returns to the previous version.
+with 200 and `/settings/` as a redirect stub. `wrangler rollback` returns to the
+previous version.
 
 ## License
 
