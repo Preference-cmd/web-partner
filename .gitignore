@@ -14,6 +14,7 @@ dist/
 .env
 .env.*
 !.env.example
+.envrc
 .dev.vars
 .dev.vars.*
 
@@ -24,6 +25,8 @@ coverage/
 # ----- Editor / OS -----
 .DS_Store
 ._*
+Thumbs.db
+desktop.ini
 *.sw?
 .idea/
 .vscode/*
