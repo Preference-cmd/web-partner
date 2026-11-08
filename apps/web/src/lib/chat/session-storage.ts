@@ -167,7 +167,12 @@ export function createSessionStorage(storage: StringStorage | undefined): Sessio
       if (isSessionId(id)) dropKey(storage, sessionKey(id));
     },
     readLegacy() {
-      return parseSessionMessages(readKey(storage, LEGACY_CHAT_KEY));
+      const raw = readKey(storage, LEGACY_CHAT_KEY);
+      if (!raw) return null;
+      const parsed = parseSessionMessages(raw);
+      // A record that cannot be parsed will never migrate; drop it instead of reading it again.
+      if (!parsed) dropKey(storage, LEGACY_CHAT_KEY);
+      return parsed;
     },
     clearLegacy() {
       dropKey(storage, LEGACY_CHAT_KEY);

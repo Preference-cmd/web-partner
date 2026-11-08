@@ -37,11 +37,12 @@ export function dropKey(storage: StringStorage | undefined, key: string): void {
 
 /** Every key the storage holds, when it can be enumerated. */
 export function keysOf(storage: StringStorage | undefined): string[] {
-  if (!storage || typeof storage.key !== 'function' || typeof storage.length !== 'number')
-    return [];
   const keys: string[] = [];
+  if (!storage || typeof storage.key !== 'function') return keys;
   try {
-    for (let index = 0; index < storage.length; index += 1) {
+    // A storage that refuses enumeration throws here, not outside the guard.
+    const total = storage.length ?? 0;
+    for (let index = 0; index < total; index += 1) {
       const key = storage.key(index);
       if (key) keys.push(key);
     }

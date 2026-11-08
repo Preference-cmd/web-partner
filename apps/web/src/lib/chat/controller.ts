@@ -7,6 +7,7 @@ import {
   createSessionStorage,
   DEFAULT_TITLE,
   HISTORY_LIMIT,
+  isSessionId,
   SESSION_LIMIT,
   type SessionStorage,
   TITLE_MAX,
@@ -204,7 +205,24 @@ export function createChatController(deps: ChatControllerDeps = {}): ChatControl
   }
 
   function nextSessionId(): string {
-    return 's-' + newId();
+    const id = 's-' + newId();
+    // An injected id can be unusable; never let one reach storage, where it would no-op.
+    return isSessionId(id) ? id : 's-' + defaultId();
+  }
+
+  function repairInterrupted(
+    messages: Message[],
+    pendingId: string | null,
+  ): { messages: Message[]; interrupted: boolean } {
+    let interrupted = false;
+    const repaired = messages.map((message) => {
+      if (pendingId && message.id === pendingId && message.status === 'streaming') {
+        interrupted = true;
+        return { ...message, status: 'aborted' as const };
+      }
+      return message;
+    });
+    return { messages: repaired, interrupted };
   }
 
   function openingMessage(): Message {
@@ -249,7 +267,13 @@ export function createChatController(deps: ChatControllerDeps = {}): ChatControl
 
   function showSession(id: string): void {
     const stored = storage.readMessages(id);
-    const messages = stored?.messages ?? [openingMessage()];
+    const repaired = stored ? repairInterrupted(stored.messages, stored.pendingId) : null;
+    const messages = repaired?.messages ?? [openingMessage()];
+    // Opening a conversation counts as using it: the list is ordered by that time,
+    // and the oldest row is what falls off when the list is full.
+    sessions = sortSessions(
+      sessions.map((session) => (session.id === id ? { ...session, updatedAt: now() } : session)),
+    );
     activeId = id;
     store.setState({
       messages,
@@ -260,7 +284,7 @@ export function createChatController(deps: ChatControllerDeps = {}): ChatControl
       activeId,
       sessions,
     });
-    if (!stored) persist(null);
+    if (!stored || repaired?.interrupted) persist(null);
     writeIndex();
   }
 
@@ -268,9 +292,11 @@ export function createChatController(deps: ChatControllerDeps = {}): ChatControl
   function migrateLegacy(): boolean {
     const legacy = storage.readLegacy();
     if (!legacy) return false;
-    storage.clearLegacy();
     const firstUser = legacy.messages.find((message) => message.role === 'user');
-    if (!firstUser) return false;
+    if (!firstUser) {
+      storage.clearLegacy();
+      return false;
+    }
     const id = nextSessionId();
     const at = now();
     sessions = [{ id, title: titleFromText(firstUser.content), createdAt: at, updatedAt: at }];
@@ -279,6 +305,8 @@ export function createChatController(deps: ChatControllerDeps = {}): ChatControl
       messages: legacy.messages.slice(-HISTORY_LIMIT),
       pendingId: legacy.pendingId,
     });
+    // Drop the old record only once its content is readable in its new home.
+    if (storage.readMessages(id)) storage.clearLegacy();
     writeIndex();
     record('system', '旧对话已迁移');
     return true;
@@ -492,23 +520,16 @@ export function createChatController(deps: ChatControllerDeps = {}): ChatControl
       writeIndex();
       return;
     }
-    let interrupted = false;
-    const messages = stored.messages.map((message) => {
-      if (stored.pendingId && message.id === stored.pendingId && message.status === 'streaming') {
-        interrupted = true;
-        return { ...message, status: 'aborted' as const };
-      }
-      return message;
-    });
+    const repaired = repairInterrupted(stored.messages, stored.pendingId);
     store.setState({
-      messages,
+      messages: repaired.messages,
       sessions,
       activeId,
       status: 'idle',
       pendingId: null,
-      emotion: lastEmotion(messages),
+      emotion: lastEmotion(repaired.messages),
     });
-    if (interrupted) persist(null);
+    if (repaired.interrupted) persist(null);
   }
 
   function clear(): void {
@@ -524,8 +545,17 @@ export function createChatController(deps: ChatControllerDeps = {}): ChatControl
     const active = sessions.find((session) => session.id === activeId);
     const hasUser = store.getState().messages.some((message) => message.role === 'user');
     if (active && !hasUser) {
+      // Reusing an empty conversation also means it starts over: name and time included.
+      sessions = sortSessions(
+        sessions.map((session) =>
+          session.id === active.id
+            ? { ...session, title: DEFAULT_TITLE, updatedAt: now() }
+            : session,
+        ),
+      );
       store.setState({
         messages: [openingMessage()],
+        sessions,
         emotion: 'idle',
         status: 'idle',
         abort: null,

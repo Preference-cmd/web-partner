@@ -44,6 +44,8 @@ interface HarnessOptions {
   sleep?: (ms: number, signal: AbortSignal) => Promise<void>;
   stored?: SessionMessages;
   random?: () => number;
+  /** Tests that care about ordering advance this instead of the wall clock. */
+  clock?: { value: number };
 }
 
 function makeHarness(options: HarnessOptions = {}) {
@@ -80,7 +82,7 @@ function makeHarness(options: HarnessOptions = {}) {
     }),
     transport,
     sleep: options.sleep ?? (() => Promise.resolve()),
-    now: () => 1000,
+    now: () => options.clock?.value ?? 1000,
     newId: () => {
       ids += 1;
       return 'm' + ids;
@@ -538,5 +540,113 @@ describe('chat controller', () => {
     expect(run.raw.getItem(LEGACY_CHAT_KEY)).toBeNull();
     expect(run.sessions()).toHaveLength(1);
     expect(run.controller.store.getState().messages[0]?.content).toBe(GREETING);
+  });
+
+  it('evicts the least recently used session, not the oldest created', async () => {
+    const clock = { value: 1000 };
+    const run = makeHarness({ clock });
+    run.controller.hydrate();
+    const ids = [run.activeId()];
+    for (let index = 0; index < SESSION_LIMIT - 1; index += 1) {
+      clock.value += 1000;
+      run.controller.quickReply('第' + index + '句');
+      await run.controller.settled();
+      run.controller.newSession();
+      ids.push(run.activeId());
+    }
+    expect(run.sessions()).toHaveLength(SESSION_LIMIT);
+    // Opening the oldest conversation counts as using it.
+    clock.value += 1000;
+    run.controller.switchSession(ids[0] ?? '');
+    expect(run.sessions()[0]?.id).toBe(ids[0]);
+    const victim = ids[1] ?? '';
+    expect(run.sessions().at(-1)?.id).toBe(victim);
+    clock.value += 1000;
+    run.controller.quickReply('最后一轮');
+    await run.controller.settled();
+    run.controller.newSession();
+    expect(run.sessions()).toHaveLength(SESSION_LIMIT);
+    expect(run.stored(victim)).toBeNull();
+    expect(run.stored(ids[0] ?? '')).not.toBeNull();
+  });
+
+  it('wipes every conversation from resetAll', async () => {
+    const run = makeHarness();
+    run.controller.hydrate();
+    run.controller.quickReply('第一段');
+    await run.controller.settled();
+    const first = run.activeId();
+    run.controller.newSession();
+    run.controller.quickReply('第二段');
+    await run.controller.settled();
+    run.controller.resetAll();
+    expect(run.sessions()).toHaveLength(1);
+    expect(run.stored(first)).toBeNull();
+    expect(run.controller.store.getState().messages[0]?.content).toBe(GREETING);
+    expect(run.stored(run.activeId())?.messages).toHaveLength(1);
+  });
+
+  it('restores the list from a second controller over the same storage', async () => {
+    const run = makeHarness();
+    run.controller.hydrate();
+    run.controller.quickReply('计划');
+    await run.controller.settled();
+    const first = run.activeId();
+    run.controller.newSession();
+    run.controller.quickReply('第二段');
+    await run.controller.settled();
+    const second = run.activeId();
+    const again = createChatController({
+      storage: run.storage,
+      sleep: () => Promise.resolve(),
+      now: () => 1000,
+      newId: () => 'x' + Math.random().toString(36).slice(2, 8),
+    });
+    again.hydrate();
+    expect(again.store.getState().activeId).toBe(second);
+    expect(again.store.getState().sessions).toHaveLength(2);
+    again.switchSession(first);
+    expect(again.store.getState().messages[1]?.content).toBe('计划');
+  });
+
+  it('persists the partial reply in its own session when switching mid-stream', async () => {
+    let release: (() => void) | undefined;
+    const run = makeHarness({
+      settings: liveSettings,
+      apiKey: 'sk-test',
+      transport: (_request, _signal, onDelta) =>
+        new Promise<void>((resolve) => {
+          onDelta('EMOTION: happy\n半');
+          release = () => {
+            onDelta('句');
+            resolve();
+          };
+        }),
+    });
+    run.controller.hydrate();
+    const first = run.activeId();
+    run.controller.send('你好');
+    await flush();
+    run.controller.newSession();
+    expect(run.stored(first)?.messages.at(-1)?.status).toBe('aborted');
+    expect(run.stored(first)?.messages.at(-1)?.content).toBe('半');
+    release?.();
+    await run.controller.settled();
+    expect(run.stored(first)?.messages.at(-1)?.content).toBe('半');
+  });
+
+  it('repairs an injected session id that storage would reject', () => {
+    const raw = memoryStorage();
+    const storage = createSessionStorage(raw);
+    const controller = createChatController({
+      storage,
+      sleep: () => Promise.resolve(),
+      now: () => 1000,
+      newId: () => 'BAD_1',
+    });
+    controller.hydrate();
+    const id = controller.store.getState().activeId ?? '';
+    expect(id).toMatch(/^s-[a-z0-9-]+$/);
+    expect(storage.readMessages(id)).not.toBeNull();
   });
 });
