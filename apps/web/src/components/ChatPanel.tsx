@@ -522,16 +522,17 @@ export default function ChatPanel() {
         </PromptInputBody>
         <PromptInputFooter>
           <PromptInputTools />
-          <PromptInputSubmit
-            status={streaming ? 'streaming' : 'ready'}
-            aria-label={streaming ? '停止回复' : '发送'}
-            disabled={!streaming && draft.trim().length === 0}
-            onClick={(event) => {
-              if (!streaming) return;
-              event.preventDefault();
-              controller.stop();
-            }}
-          />
+          <div className="ml-auto flex items-center gap-1">
+            <PromptInputSubmit
+              status={streaming ? 'streaming' : 'ready'}
+              disabled={!streaming && draft.trim().length === 0}
+              onClick={(event) => {
+                if (!streaming) return;
+                event.preventDefault();
+                controller.stop();
+              }}
+            />
+          </div>
         </PromptInputFooter>
       </PromptInput>
     </section>

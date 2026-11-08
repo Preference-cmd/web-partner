@@ -84,6 +84,9 @@ change states its migration at the top of the release it ships in.
 - Copy that described unfinished plans is gone: the login page states that the
   demo has no account system, and the settings page no longer shows a lighting
   row that only pointed at the debug drawer.
+- The composer follows the shadcn Prompt Input shape: one rounded input
+  group, a p-3 text area, pill-shaped controls and an ArrowUp send button.
+  Exports keep their names, so the chat panel only changes how it composes them.
 - Settings is a dialog now: the sidebar 设置 button and the debug drawer open
   it over the chat with a blurred backdrop, without leaving the conversation,
   and Esc, the close button or the backdrop dismiss it. `/settings` stays as a

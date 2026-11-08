@@ -1,5 +1,5 @@
 import { cn } from 'cn';
-import { CornerDownLeftIcon, Loader2Icon, SquareIcon, XIcon } from 'lucide-react';
+import { ArrowUpIcon, Loader2Icon, PlusIcon, SquareIcon, XIcon } from 'lucide-react';
 import type { ComponentProps, HTMLAttributes, KeyboardEventHandler } from 'react';
 import { useState } from 'react';
 import {
@@ -72,7 +72,7 @@ export const PromptInputTextarea = ({
 
   return (
     <InputGroupTextarea
-      className={cn('field-sizing-content max-h-48 min-h-16', className)}
+      className={cn('field-sizing-content max-h-48 min-h-16 p-3', className)}
       name="message"
       onCompositionEnd={() => setIsComposing(false)}
       onCompositionStart={() => setIsComposing(true)}
@@ -83,6 +83,13 @@ export const PromptInputTextarea = ({
     />
   );
 };
+
+export type PromptInputHeaderProps = Omit<ComponentProps<typeof InputGroupAddon>, 'align'>;
+
+/** Attachment chips and anything else that belongs above the text. */
+export const PromptInputHeader = ({ className, ...props }: PromptInputHeaderProps) => (
+  <InputGroupAddon align="block-start" className={cn('flex-wrap gap-2', className)} {...props} />
+);
 
 export type PromptInputFooterProps = Omit<ComponentProps<typeof InputGroupAddon>, 'align'>;
 
@@ -97,7 +104,21 @@ export const PromptInputFooter = ({ className, ...props }: PromptInputFooterProp
 export type PromptInputToolsProps = HTMLAttributes<HTMLDivElement>;
 
 export const PromptInputTools = ({ className, ...props }: PromptInputToolsProps) => (
-  <div className={cn('flex items-center gap-1', className)} {...props} />
+  <div className={cn('flex min-w-0 items-center gap-1', className)} {...props} />
+);
+
+export type PromptInputAttachButtonProps = ComponentProps<typeof InputGroupButton>;
+
+export const PromptInputAttachButton = ({ className, ...props }: PromptInputAttachButtonProps) => (
+  <InputGroupButton
+    aria-label="添加附件"
+    size="icon-sm"
+    variant="outline"
+    className={cn('rounded-full', className)}
+    {...props}
+  >
+    <PlusIcon />
+  </InputGroupButton>
 );
 
 export type PromptInputSubmitProps = ComponentProps<typeof InputGroupButton> & {
@@ -112,20 +133,22 @@ export const PromptInputSubmit = ({
   children,
   ...props
 }: PromptInputSubmitProps) => {
-  let Icon = <CornerDownLeftIcon className="size-4" />;
+  let Icon = <ArrowUpIcon className="size-4" />;
+  let label = '发送';
 
   if (status === 'submitted') {
     Icon = <Loader2Icon className="size-4 animate-spin" />;
   } else if (status === 'streaming') {
     Icon = <SquareIcon className="size-4" />;
+    label = '停止回复';
   } else if (status === 'error') {
     Icon = <XIcon className="size-4" />;
   }
 
   return (
     <InputGroupButton
-      aria-label="发送"
-      className={cn(className)}
+      aria-label={label}
+      className={cn('rounded-full', className)}
       size={size}
       type="submit"
       variant={variant}
