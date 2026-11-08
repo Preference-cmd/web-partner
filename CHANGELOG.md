@@ -72,6 +72,9 @@ change states its migration at the top of the release it ships in.
   once the figure would fall below 55% visible on desktop and 60% on phones, and
   scrolls the transcript instead. The figure also stops at the top edge instead
   of sliding under the browser chrome.
+- A message made of one long token (a URL, a key, a hash) wraps inside its
+  bubble instead of being clipped at the edge.
+
 ### Changed
 
 - Copy that described unfinished plans is gone: the login page states that the
