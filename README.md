@@ -181,11 +181,12 @@ nothing lives there yet.
 
 The code is **MIT** — see [`LICENSE`](LICENSE). The character art in
 `apps/web/public/character/` is not covered by that licence: it is
-**CC BY-NC-SA 4.0**, non-commercial and share-alike. [`NOTICE.md`](NOTICE.md)
-records the boundary and
-[`ATTRIBUTION.md`](apps/web/public/character/ATTRIBUTION.md) credits the
-original artists. Replace the art before any commercial use; this demo is
-unofficial and non-commercial.
+**CC BY-NC-SA 4.0**, non-commercial and share-alike. The art is by
+Sutera-Diffusus, based on a character by 上善无形;
+[`ATTRIBUTION.md`](apps/web/public/character/ATTRIBUTION.md) has the sources and
+[`NOTICE.md`](NOTICE.md) records the boundary. The screenshots in `docs/` show
+that art, so the same non-commercial terms apply to them. Replace the art
+before any commercial use; this demo is unofficial and non-commercial.
 
 ## Working on it
 
