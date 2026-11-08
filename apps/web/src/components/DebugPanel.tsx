@@ -15,10 +15,10 @@ import { getChatController } from '@/lib/chat/controller';
 import { EMOTION_LABEL } from '@/lib/chat/emotion';
 import {
   applyModeChip,
+  currentApiKey,
   DEFAULT_SETTINGS,
   describeMode,
   loadSettings,
-  readApiKey,
   resolveMode,
   type Settings,
   saveSettings,
@@ -165,8 +165,9 @@ export default function DebugPanel() {
     prefsRef.current = stored;
     setPrefs(stored);
     applyPanelPrefs(document.documentElement, stored);
-    setSettings(loadSettings(window.localStorage));
-    setApiKey(readApiKey(window.sessionStorage, window.localStorage));
+    const saved = loadSettings(window.localStorage);
+    setSettings(saved);
+    setApiKey(currentApiKey(saved, window.sessionStorage, window.localStorage));
   }, []);
 
   // The settings page owns the other light switch; follow it instead of copying it.
@@ -370,7 +371,7 @@ export default function DebugPanel() {
           端点与密钥在
           <button
             type="button"
-            onClick={requestSettings}
+            onClick={() => requestSettings('providers')}
             className="mx-1 underline underline-offset-2 hover:text-foreground"
           >
             设置窗口

@@ -1,16 +1,14 @@
 import { cn } from 'cn';
+import type { LucideIcon } from 'lucide-react';
 import {
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  EyeIcon,
-  EyeOffIcon,
-  FlaskConicalIcon,
-  type LucideIcon,
+  BoxesIcon,
+  DatabaseIcon,
+  InfoIcon,
   PaletteIcon,
-  PlugIcon,
+  PencilIcon,
   PlusIcon,
   SlidersHorizontalIcon,
-  XIcon,
+  Trash2Icon,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -25,16 +23,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupInput,
-} from '@/components/ui/input-group';
 import { Slider } from '@/components/ui/slider';
 import { Toaster } from '@/components/ui/sonner';
 import { Switch } from '@/components/ui/switch';
@@ -45,26 +37,31 @@ import {
   ALPHA_DEFAULT,
   ALPHA_MAX,
   ALPHA_MIN,
+  activeTarget,
   applyAppearance,
   applyModeChip,
-  clearApiKey,
+  clampEffort,
+  clearAllProviderKeys,
+  clearProviderKey,
   clearSettings,
+  currentApiKey,
   DEFAULT_SETTINGS,
   describeMode,
   EFFORT_LABEL,
-  EFFORT_ORDER,
   type Effort,
-  endpointHint,
+  effortOptions,
   loadSettings,
-  MODEL_PRESET_LIMIT,
-  type ModelPreset,
   type Motion,
-  readApiKey,
+  modelLabel,
+  normalizeActive,
+  PROTOCOL_LABEL,
+  PROVIDER_LIMIT,
+  type Provider,
+  readProviderKey,
   type Settings,
-  saveApiKey,
+  saveProviderKey,
   saveSettings,
 } from '@/lib/chat/settings';
-import { type ProbeResult, probeReadiness, runProbe } from '@/lib/chat/test-connection';
 import {
   LIGHT_EVENT,
   LIGHT_THEMES,
@@ -73,6 +70,7 @@ import {
   setLight,
 } from '@/lib/debug/prefs';
 import { announceSettings } from '@/lib/ui/open-settings';
+import ProviderDialog from './ProviderDialog';
 
 const MODE_OPTIONS = [
   { id: 'demo', label: '演示' },
@@ -86,38 +84,37 @@ const MOTION_OPTIONS: ReadonlyArray<{ id: Motion; label: string }> = [
   { id: 'full', label: '完整' },
 ];
 
-type StepId = 'connection' | 'test' | 'appearance' | 'more';
+type SectionId = 'providers' | 'usage' | 'appearance' | 'data' | 'about';
 
-const STEPS: ReadonlyArray<{ id: StepId; label: string; icon: LucideIcon; hint: string }> = [
-  { id: 'connection', label: '连接', icon: PlugIcon, hint: '端点、模型与 key' },
-  { id: 'test', label: '测试连接', icon: FlaskConicalIcon, hint: '发一次最小请求' },
-  { id: 'appearance', label: '模式与外观', icon: PaletteIcon, hint: '回复来源、透明度、动效' },
-  { id: 'more', label: '更多', icon: SlidersHorizontalIcon, hint: '模型调用、数据与关于' },
-];
-
-/** Four steps in two groups: one row of chips on a phone, a nav on a desktop. */
-const STEP_GROUPS: ReadonlyArray<{ id: string; label: string; steps: ReadonlyArray<StepId> }> = [
-  { id: 'access', label: '接入模型', steps: ['connection', 'test'] },
-  { id: 'use', label: '使用与数据', steps: ['appearance', 'more'] },
-];
-
-/** Older links pointed at one section; each still lands on the step that owns it. */
-const HASH_STEPS: Record<string, StepId> = {
-  connection: 'connection',
-  test: 'test',
-  mode: 'appearance',
-  appearance: 'appearance',
-  model: 'more',
-  data: 'more',
-  about: 'more',
-};
-
-const STEP_ORDER = STEPS.map((item) => item.id);
-
-function stepAt(step: StepId, offset: number): StepId | null {
-  const index = STEP_ORDER.indexOf(step) + offset;
-  return STEP_ORDER[index] ?? null;
+interface SectionSpec {
+  id: SectionId;
+  label: string;
+  icon: LucideIcon;
+  group: string;
 }
+
+const SECTIONS: readonly SectionSpec[] = [
+  { id: 'providers', label: '供应商', icon: BoxesIcon, group: '接入' },
+  { id: 'usage', label: '对话与调用', icon: SlidersHorizontalIcon, group: '接入' },
+  { id: 'appearance', label: '外观', icon: PaletteIcon, group: '应用' },
+  { id: 'data', label: '数据', icon: DatabaseIcon, group: '其他' },
+  { id: 'about', label: '关于', icon: InfoIcon, group: '其他' },
+];
+
+const GROUPS = ['接入', '应用', '其他'] as const;
+
+/** Links written before the two-pane layout still land on the section that owns them. */
+const HASH_SECTIONS: Record<string, SectionId> = {
+  providers: 'providers',
+  connection: 'providers',
+  model: 'providers',
+  test: 'providers',
+  usage: 'usage',
+  mode: 'usage',
+  appearance: 'appearance',
+  data: 'data',
+  about: 'about',
+};
 
 type ModeChoice = (typeof MODE_OPTIONS)[number]['id'];
 
@@ -138,87 +135,39 @@ function modeChoice(settings: Settings): ModeChoice {
 function Section({
   id,
   title,
+  description,
+  aside,
+  card = true,
   children,
-  active = true,
-  tightTitle = false,
 }: {
-  id: string;
+  id: SectionId;
   title: string;
+  description?: React.ReactNode;
+  aside?: React.ReactNode;
+  card?: boolean;
   children: React.ReactNode;
-  /** One step shows at a time; hidden steps stay mounted so fields keep focus. */
-  active?: boolean;
-  /** A one-section step repeats its title in the chips row, so a phone can skip it. */
-  tightTitle?: boolean;
 }) {
   return (
-    <section id={id} className={cn('flex scroll-mt-6 flex-col gap-2', !active && 'hidden')}>
-      <h2 className={cn('text-sm font-semibold tracking-tight', tightTitle && 'max-sm:sr-only')}>
-        {title}
-      </h2>
-      <Card>
-        <CardContent className="divide-y py-0">{children}</CardContent>
-      </Card>
+    <section id={`settings-${id}`} aria-labelledby={`settings-${id}-title`} className="scroll-mt-4">
+      <div className="mb-3 flex flex-col gap-1">
+        <div className="flex min-h-9 items-center justify-between gap-3">
+          <h2 id={`settings-${id}-title`} className="text-base font-semibold tracking-tight">
+            {title}
+          </h2>
+          {aside ? <div className="shrink-0">{aside}</div> : null}
+        </div>
+        {description ? (
+          <p className="max-w-[62ch] text-sm leading-normal text-muted-foreground">{description}</p>
+        ) : null}
+      </div>
+      {card ? (
+        <Card>
+          <CardContent className="divide-y py-0">{children}</CardContent>
+        </Card>
+      ) : (
+        children
+      )}
     </section>
-  );
-}
-
-/** The step list: a grouped nav on a desktop, one scrollable row of chips on a phone. */
-function StepNav({ step, onGo }: { step: StepId; onGo: (next: StepId) => void }) {
-  return (
-    <>
-      <nav aria-label="设置步骤" className="hidden w-44 shrink-0 lg:block">
-        {STEP_GROUPS.map((group) => (
-          <div key={group.id} className="flex flex-col gap-1 pb-4">
-            <p className="px-3 text-xs font-medium text-muted-foreground">{group.label}</p>
-            {group.steps.map((id) => {
-              const item = STEPS.find((candidate) => candidate.id === id);
-              if (!item) return null;
-              const Icon = item.icon;
-              const current = id === step;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  aria-current={current ? 'step' : undefined}
-                  onClick={() => onGo(id)}
-                  className={cn(
-                    'flex items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors',
-                    current
-                      ? 'bg-secondary text-secondary-foreground'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                  )}
-                >
-                  <Icon className="size-4 shrink-0" aria-hidden="true" />
-                  <span className="truncate">{item.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        ))}
-      </nav>
-
-      <nav
-        aria-label="设置步骤"
-        className="sticky top-0 z-10 -mx-4 flex gap-1 overflow-x-auto border-b bg-background/95 px-4 py-1 backdrop-blur sm:-mx-6 sm:px-6 lg:hidden"
-      >
-        {STEPS.map(({ id, label }) => (
-          <button
-            key={id}
-            type="button"
-            aria-current={id === step ? 'step' : undefined}
-            onClick={() => onGo(id)}
-            className={cn(
-              'shrink-0 rounded-full border px-3 py-2 text-xs transition-colors',
-              id === step
-                ? 'border-foreground/20 bg-secondary text-secondary-foreground'
-                : 'text-muted-foreground',
-            )}
-          >
-            {label}
-          </button>
-        ))}
-      </nav>
-    </>
   );
 }
 
@@ -246,63 +195,11 @@ function Row({
       <div className="flex min-w-0 flex-col gap-1">
         {label}
         {description ? (
-          <p className="text-sm leading-normal text-muted-foreground">{description}</p>
+          <p className="max-w-[58ch] text-sm leading-normal text-muted-foreground">{description}</p>
         ) : null}
       </div>
       {children ? (
         <div className="flex shrink-0 flex-col gap-2 sm:items-end">{children}</div>
-      ) : null}
-    </div>
-  );
-}
-
-/** A full-width control under its own label, for text fields. */
-function FieldRow({
-  id,
-  title,
-  description,
-  aside,
-  children,
-}: {
-  id: string;
-  title: string;
-  description?: React.ReactNode;
-  /** A receipt or hint that sits beside the label, not under it. */
-  aside?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-1.5 py-2 sm:py-2.5">
-      <div className="flex items-baseline justify-between gap-3">
-        <label htmlFor={id} className="text-sm font-medium">
-          {title}
-        </label>
-        {aside}
-      </div>
-      {children}
-      {description ? (
-        <p className="text-xs leading-snug text-muted-foreground sm:text-sm">{description}</p>
-      ) : null}
-    </div>
-  );
-}
-
-/** A full-width block whose label is not attached to one input. */
-function Block({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-2 py-4">
-      <span className="text-sm font-medium">{title}</span>
-      {children}
-      {description ? (
-        <p className="text-sm leading-normal text-muted-foreground">{description}</p>
       ) : null}
     </div>
   );
@@ -353,39 +250,6 @@ function TokenField({
   );
 }
 
-/** A field-level receipt: it appears after a commit and leaves on its own. */
-function SavedReceipt({ show }: { show: boolean }) {
-  if (!show) return null;
-  return (
-    <span role="status" className="text-xs text-muted-foreground">
-      已保存
-    </span>
-  );
-}
-
-const PROBE_TONE: Record<ProbeResult['outcome'], string> = {
-  ok: 'text-emerald-400',
-  incomplete: 'text-muted-foreground',
-  unauthorized: 'text-destructive',
-  unreachable: 'text-destructive',
-};
-
-const PROBE_LABEL: Record<ProbeResult['outcome'], string> = {
-  ok: '通过',
-  incomplete: '未填完',
-  unauthorized: 'key 被拒',
-  unreachable: '端点不可达',
-};
-
-function ProbeLine({ result }: { result: ProbeResult | null }) {
-  if (!result) return null;
-  return (
-    <p role="status" className={cn('text-sm', PROBE_TONE[result.outcome])}>
-      {PROBE_LABEL[result.outcome]} · {result.reason}
-    </p>
-  );
-}
-
 function AboutRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-4 py-4 text-sm">
@@ -395,27 +259,129 @@ function AboutRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function ProviderCard({
+  provider,
+  active,
+  activeModel,
+  onSelectProvider,
+  onSelectModel,
+  onEdit,
+  onDelete,
+}: {
+  provider: Provider;
+  active: boolean;
+  activeModel: string;
+  onSelectProvider: (provider: Provider) => void;
+  onSelectModel: (providerId: string, model: string) => void;
+  onEdit: (provider: Provider) => void;
+  onDelete: (provider: Provider) => void;
+}) {
+  return (
+    <div
+      className={cn(
+        'rounded-xl border bg-card p-3 shadow-sm transition-colors',
+        active ? 'border-ring/60' : 'border-border',
+      )}
+    >
+      <div className="flex items-start gap-2">
+        <button
+          type="button"
+          aria-pressed={active}
+          onClick={() => onSelectProvider(provider)}
+          className="flex min-w-0 flex-1 flex-col gap-1 rounded-lg py-0.5 text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="truncate text-sm font-medium">{provider.name}</span>
+            {active ? <Badge className="shrink-0">当前</Badge> : null}
+            <Badge variant="outline" className="shrink-0 text-[0.7rem] font-normal">
+              {PROTOCOL_LABEL[provider.protocol]}
+            </Badge>
+          </span>
+          <span className="w-full truncate font-mono text-xs text-muted-foreground">
+            {provider.baseUrl || '还没填 base URL'}
+          </span>
+        </button>
+        <div className="flex shrink-0 items-center gap-0.5">
+          <Button
+            aria-label={`编辑 ${provider.name}`}
+            className="max-md:size-11"
+            size="icon-sm"
+            type="button"
+            variant="ghost"
+            onClick={() => onEdit(provider)}
+          >
+            <PencilIcon />
+          </Button>
+          <Button
+            aria-label={`删除 ${provider.name}`}
+            className="max-md:size-11"
+            size="icon-sm"
+            type="button"
+            variant="ghost"
+            onClick={() => onDelete(provider)}
+          >
+            <Trash2Icon />
+          </Button>
+        </div>
+      </div>
+
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        <span className="text-xs text-muted-foreground">模型</span>
+        {provider.models.length === 0 ? (
+          <span className="text-xs text-destructive">还没加模型</span>
+        ) : (
+          provider.models.map((model) => {
+            const chosen = active && activeModel === model.model;
+            return (
+              <button
+                key={model.id}
+                type="button"
+                aria-pressed={chosen}
+                onClick={() => onSelectModel(provider.id, model.model)}
+                className={cn(
+                  'max-md:min-h-11 rounded-full border px-2.5 py-1 text-xs transition-colors',
+                  chosen
+                    ? 'border-foreground/20 bg-secondary text-secondary-foreground'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                )}
+              >
+                {modelLabel(model)}
+              </button>
+            );
+          })
+        )}
+      </div>
+
+      <p className="mt-2 text-xs text-muted-foreground">
+        {provider.efforts.length > 0
+          ? `思考强度 ${provider.efforts.map((effort) => EFFORT_LABEL[effort]).join(' / ')}`
+          : '没开思考强度'}
+        {' · '}
+        {provider.direct ? '浏览器直连' : '经代理'}
+      </p>
+    </div>
+  );
+}
+
 export default function SettingsPanel() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
-  const [apiKey, setApiKey] = useState('');
-  const [showKey, setShowKey] = useState(false);
-  const [step, setStep] = useState<StepId>('connection');
   const [light, setLightState] = useState<LightTheme>('night');
-  const [savedField, setSavedField] = useState<string | null>(null);
-  const [probe, setProbe] = useState<{ running: boolean; result: ProbeResult | null }>({
-    running: false,
-    result: null,
-  });
-  const savedTimer = useRef<number | undefined>(undefined);
+  const [section, setSection] = useState<SectionId>('providers');
+  const [editor, setEditor] = useState<{
+    open: boolean;
+    provider: Provider | null;
+    key: string;
+  }>({ open: false, provider: null, key: '' });
+  const [pendingDelete, setPendingDelete] = useState<Provider | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const stored = loadSettings(window.localStorage);
     setSettings(stored);
-    setApiKey(readApiKey(window.sessionStorage, window.localStorage));
     applyAppearance(document.documentElement, stored);
     setLightState(loadPanelPrefs(window.localStorage).light);
-    const fromHash = HASH_STEPS[window.location.hash.slice(1)];
-    if (fromHash) setStep(fromHash);
+    const fromHash = HASH_SECTIONS[window.location.hash.slice(1)];
+    if (fromHash) setSection(fromHash);
     // The debug drawer can change the light while this dialog is open.
     const sync = (event: Event): void => {
       const detail = (event as CustomEvent<{ light?: LightTheme }>).detail;
@@ -425,73 +391,120 @@ export default function SettingsPanel() {
     return () => window.removeEventListener(LIGHT_EVENT, sync);
   }, []);
 
-  useEffect(
-    () => () => {
-      if (savedTimer.current) window.clearTimeout(savedTimer.current);
-    },
-    [],
-  );
+  // The nav follows the scroll, so a long section list still says where you are.
+  useEffect(() => {
+    const root = scrollRef.current;
+    if (!root) return;
+    let frame = 0;
+    const measure = (): void => {
+      frame = 0;
+      const top = root.getBoundingClientRect().top + 32;
+      let current: SectionId = 'providers';
+      for (const { id } of SECTIONS) {
+        const node = root.querySelector<HTMLElement>(`#settings-${id}`);
+        if (node && node.getBoundingClientRect().top <= top) current = id;
+      }
+      setSection(current);
+    };
+    const onScroll = (): void => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(measure);
+    };
+    root.addEventListener('scroll', onScroll, { passive: true });
+    measure();
+    return () => {
+      root.removeEventListener('scroll', onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, []);
 
-  /** One step at a time; the hash keeps a step link shareable. */
-  function go(next: StepId): void {
-    setStep(next);
-    window.history.replaceState(window.history.state, '', '#' + next);
-  }
-
-  function flashSaved(field: string): void {
-    setSavedField(field);
-    if (savedTimer.current) window.clearTimeout(savedTimer.current);
-    savedTimer.current = window.setTimeout(() => setSavedField(null), 1600);
-  }
-
-  async function testConnection(): Promise<void> {
-    setProbe({ running: true, result: null });
-    setProbe({ running: false, result: await runProbe(settings, apiKey) });
-  }
-
-  function syncChip(next: Settings, key: string): void {
+  function syncChip(next: Settings): void {
+    const key = currentApiKey(next, window.sessionStorage, window.localStorage);
     applyModeChip(document, describeMode(next, key).mode);
   }
 
-  function update(patch: Partial<Settings>): void {
-    const next = { ...settings, ...patch };
+  function commit(next: Settings): void {
     setSettings(next);
     saveSettings(window.localStorage, next);
     applyAppearance(document.documentElement, next);
-    syncChip(next, apiKey);
+    syncChip(next);
     announceSettings();
   }
 
-  function pickMode(choice: ModeChoice): void {
-    const next = choice === 'force' ? { forceDemo: true } : { forceDemo: false, mode: choice };
-    update(next);
-    // The chip shows what is in effect, not what was asked for.
-    const status = describeMode({ ...settings, ...next }, apiKey);
-    toast.success(status.mode === 'live' ? '已切到实时模式' : '仍是演示模式 · ' + status.reason);
+  function go(next: SectionId): void {
+    setSection(next);
+    const node = scrollRef.current?.querySelector<HTMLElement>(`#settings-${next}`);
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    node?.scrollIntoView({ block: 'start', behavior: reduced ? 'auto' : 'smooth' });
+    window.history.replaceState(window.history.state, '', '#' + next);
   }
 
-  function changeKey(value: string): void {
-    setApiKey(value);
-    saveApiKey(window.sessionStorage, value);
-    syncChip(settings, value);
-  }
-
-  function addModelPreset(): void {
-    if (settings.modelPresets.length >= MODEL_PRESET_LIMIT) return;
-    const id = 'm-' + Date.now().toString(36);
-    update({ modelPresets: [...settings.modelPresets, { id, label: '', model: '' }] });
-  }
-
-  function patchModelPreset(id: string, patch: Partial<ModelPreset>): void {
-    update({
-      modelPresets: settings.modelPresets.map((preset) =>
-        preset.id === id ? { ...preset, ...patch } : preset,
-      ),
+  function openEditor(provider: Provider | null): void {
+    setEditor({
+      open: true,
+      provider,
+      key: provider ? readProviderKey(window.sessionStorage, window.localStorage, provider.id) : '',
     });
   }
 
-  function removeModelPreset(id: string): void {
-    update({ modelPresets: settings.modelPresets.filter((preset) => preset.id !== id) });
+  function saveProvider(next: Provider, key: string): void {
+    const exists = settings.providers.some((provider) => provider.id === next.id);
+    const providers = exists
+      ? settings.providers.map((provider) => (provider.id === next.id ? next : provider))
+      : [...settings.providers, next].slice(0, PROVIDER_LIMIT);
+    const withProvider: Settings = exists
+      ? { ...settings, providers }
+      : {
+          ...settings,
+          providers,
+          activeProviderId: next.id,
+          activeModel: next.models[0]?.model ?? '',
+        };
+    commit(normalizeActive(withProvider));
+    if (key) saveProviderKey(window.sessionStorage, next.id, key);
+    else clearProviderKey(window.sessionStorage, window.localStorage, next.id);
+    setEditor({ open: false, provider: null, key: '' });
+    toast.success(exists ? `已保存 ${next.name}` : `已添加 ${next.name}`);
+  }
+
+  function selectProvider(provider: Provider): void {
+    commit(
+      normalizeActive({
+        ...settings,
+        activeProviderId: provider.id,
+        activeModel: provider.models[0]?.model ?? '',
+      }),
+    );
+  }
+
+  function selectModel(providerId: string, model: string): void {
+    commit(normalizeActive({ ...settings, activeProviderId: providerId, activeModel: model }));
+  }
+
+  function deleteProvider(provider: Provider): void {
+    const providers = settings.providers.filter((entry) => entry.id !== provider.id);
+    clearProviderKey(window.sessionStorage, window.localStorage, provider.id);
+    commit(normalizeActive({ ...settings, providers }));
+    setPendingDelete(null);
+    toast.success(`已删除 ${provider.name}`);
+  }
+
+  function update(patch: Partial<Settings>): void {
+    commit(normalizeActive({ ...settings, ...patch }));
+  }
+
+  function pickMode(choice: ModeChoice): void {
+    const next = normalizeActive({
+      ...settings,
+      ...(choice === 'force' ? { forceDemo: true } : { forceDemo: false, mode: choice }),
+    });
+    commit(next);
+    // The chip shows what is in effect, not what was asked for.
+    const status = describeMode(
+      next,
+      currentApiKey(next, window.sessionStorage, window.localStorage),
+    );
+    toast.success(status.mode === 'live' ? '已切到实时模式' : '仍是演示模式 · ' + status.reason);
   }
 
   function clearHistory(): void {
@@ -504,22 +517,20 @@ export default function SettingsPanel() {
     toast.success('历史已清空');
   }
 
-  function removeKey(): void {
-    clearApiKey(window.sessionStorage, window.localStorage);
-    setApiKey('');
-    syncChip(settings, '');
-    toast.success('API key 已清除');
+  function removeKeys(): void {
+    clearAllProviderKeys(window.sessionStorage, window.localStorage);
+    syncChip(settings);
+    toast.success('已清除全部 API key');
   }
 
   function reset(): void {
     clearSettings(window.localStorage);
     const next = { ...DEFAULT_SETTINGS };
-    setSettings(next);
-    applyAppearance(document.documentElement, next);
-    syncChip(next, apiKey);
+    commit(next);
     toast.success('已恢复默认设置');
   }
 
+  const apiKey = currentApiKey(settings, window.sessionStorage, window.localStorage);
   const status = describeMode(settings, apiKey);
   const live = status.mode === 'live';
   const wantsLive = settings.mode === 'live' && !settings.forceDemo;
@@ -528,496 +539,450 @@ export default function SettingsPanel() {
     : wantsLive
       ? '演示模式 · 已选实时，' + status.reason
       : '演示模式 · ' + status.reason;
-  const hint = endpointHint(settings.endpoint, settings.direct);
-  const blocked = probeReadiness(settings, apiKey);
-  const previous = stepAt(step, -1);
-  const next = stepAt(step, 1);
-  const nextLabel = next ? STEPS.find((item) => item.id === next)?.label : null;
+  const target = activeTarget(settings);
+  const provider = target?.provider;
+  const effortNow = clampEffort(settings.effort, provider);
+  const effortChoices = effortOptions(provider);
 
   return (
     <>
-      {/* Top centre: the wizard's next button owns the bottom right corner. */}
+      {/* Top centre: a save receipt should not sit under the pointer. */}
       <Toaster position="top-center" />
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-12">
-        <StepNav step={step} onGo={go} />
-
-        <div className="flex min-w-0 flex-1 flex-col gap-6">
-          <div className="flex flex-col gap-6">
-            <Section id="connection" title="连接" active={step === 'connection'} tightTitle>
-              <FieldRow
-                id="set-endpoint"
-                title="端点"
-                aside={<SavedReceipt show={savedField === 'endpoint'} />}
-                description={hint ?? 'OpenAI 兼容的 base URL，末尾不带 /chat/completions。'}
-              >
-                <Input
-                  id="set-endpoint"
-                  type="url"
-                  inputMode="url"
-                  spellCheck={false}
-                  autoComplete="off"
-                  placeholder="https://api.openai.com/v1"
-                  value={settings.endpoint}
-                  aria-invalid={Boolean(hint)}
-                  onChange={(event) => update({ endpoint: event.target.value })}
-                  onBlur={() => flashSaved('endpoint')}
-                />
-              </FieldRow>
-
-              <FieldRow
-                id="set-model"
-                title="模型"
-                aside={<SavedReceipt show={savedField === 'model'} />}
-                description="端点决定模型名怎么写，一般和端点文档一致。"
-              >
-                <Input
-                  id="set-model"
-                  spellCheck={false}
-                  autoComplete="off"
-                  placeholder="gpt-4o-mini"
-                  value={settings.model}
-                  aria-invalid={settings.endpoint.trim().length > 0 && !settings.model.trim()}
-                  onChange={(event) => update({ model: event.target.value })}
-                  onBlur={() => flashSaved('model')}
-                />
-                {settings.endpoint.trim().length > 0 && !settings.model.trim() ? (
-                  <p className="text-sm text-destructive">请填写模型名，例如 gpt-4o-mini</p>
-                ) : null}
-              </FieldRow>
-
-              <FieldRow
-                id="set-key"
-                title="API key"
-                aside={<SavedReceipt show={savedField === 'key'} />}
-                description="只留在当前标签页，关掉即清除；请求时内存转发，不写日志。"
-              >
-                <InputGroup>
-                  <InputGroupInput
-                    id="set-key"
-                    type={showKey ? 'text' : 'password'}
-                    spellCheck={false}
-                    autoComplete="off"
-                    placeholder={settings.direct ? '直连时可以空着' : 'sk-…'}
-                    value={apiKey}
-                    onChange={(event) => changeKey(event.target.value)}
-                    onBlur={() => flashSaved('key')}
-                  />
-                  <InputGroupAddon align="inline-end">
-                    <InputGroupButton
-                      variant="ghost"
-                      size="icon-xs"
-                      aria-label={showKey ? '隐藏 key' : '显示 key'}
-                      aria-pressed={showKey}
-                      onClick={() => setShowKey((value) => !value)}
-                    >
-                      {showKey ? <EyeOffIcon /> : <EyeIcon />}
-                    </InputGroupButton>
-                  </InputGroupAddon>
-                </InputGroup>
-              </FieldRow>
-
-              <Row
-                title="直连端点"
-                description="浏览器直接请求，不经过代理。本机模型或允许 CORS 的端点用这个。"
-              >
-                <Switch
-                  id="set-direct"
-                  aria-label="直连端点"
-                  checked={settings.direct}
-                  onCheckedChange={(checked) => {
-                    update({ direct: checked });
-                    toast.success(checked ? '已打开直连' : '已关闭直连');
-                  }}
-                />
-              </Row>
-            </Section>
-
-            <Section id="test" title="测试连接" active={step === 'test'} tightTitle>
-              <Block
-                title="发一次最小请求"
-                description="只发一句 ping：不写设置、不进对话记录、不重试。直连与经代理都会走各自真实的路径。"
-              >
-                <div className="flex flex-col gap-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      type="button"
-                      disabled={probe.running || blocked !== null}
-                      onClick={() => void testConnection()}
-                    >
-                      <FlaskConicalIcon data-icon="inline-start" />
-                      {probe.running ? '正在测试…' : '测试连接'}
-                    </Button>
-                    {blocked ? (
-                      <span className="text-sm text-muted-foreground">{blocked}</span>
-                    ) : null}
-                  </div>
-                  {probe.result ? (
-                    <ProbeLine result={probe.result} />
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      还没测过。<span className="font-mono">/api/chat</span>{' '}
-                      与本机直连都会按当前设置发一次。
-                    </p>
-                  )}
-                </div>
-              </Block>
-            </Section>
-
-            <Section id="model" title="模型调用" active={step === 'more'}>
-              <Block
-                title="模型预设"
-                description={`同一个端点下常用的模型名，最多 ${MODEL_PRESET_LIMIT} 个；对话输入框旁的菜单可以直接切换。`}
-              >
-                <div className="flex flex-col gap-2">
-                  {settings.modelPresets.map((preset) => (
-                    <div key={preset.id} className="flex items-center gap-2">
-                      <Input
-                        aria-label="预设名称"
-                        className="w-28"
-                        maxLength={24}
-                        placeholder="名称"
-                        spellCheck={false}
-                        value={preset.label}
-                        onChange={(event) =>
-                          patchModelPreset(preset.id, { label: event.target.value })
-                        }
-                      />
-                      <Input
-                        aria-label="预设模型名"
-                        autoComplete="off"
-                        className="flex-1"
-                        placeholder="gpt-4o-mini"
-                        spellCheck={false}
-                        value={preset.model}
-                        onChange={(event) =>
-                          patchModelPreset(preset.id, { model: event.target.value })
-                        }
-                      />
-                      <Button
-                        aria-label={`删除预设${preset.label || preset.model}`}
-                        size="icon-sm"
-                        type="button"
-                        variant="ghost"
-                        onClick={() => removeModelPreset(preset.id)}
-                      >
-                        <XIcon />
-                      </Button>
-                    </div>
-                  ))}
-                  <Button
-                    className="w-fit"
-                    disabled={settings.modelPresets.length >= MODEL_PRESET_LIMIT}
-                    size="sm"
+      <div className="grid h-full min-h-0 lg:grid-cols-[13.5rem_minmax(0,1fr)]">
+        <nav
+          aria-label="设置分区"
+          className="hidden min-h-0 flex-col gap-5 overflow-y-auto px-3 py-5 lg:flex"
+        >
+          {GROUPS.map((group) => (
+            <div key={group} className="flex flex-col gap-1">
+              <p className="px-3 text-xs font-medium text-muted-foreground">{group}</p>
+              {SECTIONS.filter((item) => item.group === group).map(({ id, label, icon: Icon }) => {
+                const current = id === section;
+                return (
+                  <button
+                    key={id}
                     type="button"
-                    variant="outline"
-                    onClick={addModelPreset}
+                    aria-current={current ? 'true' : undefined}
+                    onClick={() => go(id)}
+                    className={cn(
+                      'flex items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors',
+                      current
+                        ? 'bg-secondary text-secondary-foreground'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                    )}
                   >
-                    <PlusIcon data-icon="inline-start" />
-                    添加模型预设
-                  </Button>
-                </div>
-              </Block>
+                    <Icon className="size-4 shrink-0" aria-hidden="true" />
+                    <span className="truncate">{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+          <p className="mt-auto px-3 pt-4 text-xs leading-snug text-muted-foreground">
+            改完即保存，按 Esc 关闭。
+          </p>
+        </nav>
 
-              <Row
-                htmlFor="set-output"
-                title="输出预算"
-                description="这一轮最多生成多少 token，思考的 token 也算在里面。推理模型开到高档时给太小，答案会在正文中间截断。"
+        <div className="flex min-h-0 flex-col">
+          <nav
+            aria-label="设置分区"
+            className="flex shrink-0 gap-1 overflow-x-auto border-b px-3 py-2 lg:hidden"
+          >
+            {SECTIONS.map(({ id, label }) => (
+              <button
+                key={id}
+                type="button"
+                aria-current={id === section ? 'true' : undefined}
+                onClick={() => go(id)}
+                className={cn(
+                  'min-h-11 shrink-0 rounded-full border px-3 text-xs transition-colors',
+                  id === section
+                    ? 'border-foreground/20 bg-secondary text-secondary-foreground'
+                    : 'text-muted-foreground',
+                )}
               >
-                <div className="flex items-center gap-2">
-                  <TokenField
-                    id="set-output"
-                    value={settings.maxOutputTokens}
-                    min={OUTPUT_MIN}
-                    max={OUTPUT_MAX}
-                    onCommit={(value) => {
-                      update({ maxOutputTokens: value });
-                      toast.success('输出预算已保存');
-                    }}
-                  />
-                  <span className="text-sm text-muted-foreground">tokens</span>
-                </div>
-              </Row>
+                {label}
+              </button>
+            ))}
+          </nav>
 
-              <Row
-                htmlFor="set-context"
-                title="上下文窗口"
-                description="每次请求带上最近对话的约这么多 token；更早的留在本机。越大越贵，也越慢。"
-              >
-                <div className="flex items-center gap-2">
-                  <TokenField
-                    id="set-context"
-                    value={settings.contextTokens}
-                    min={CONTEXT_MIN}
-                    max={CONTEXT_MAX}
-                    onCommit={(value) => {
-                      update({ contextTokens: value });
-                      toast.success('上下文窗口已保存');
-                    }}
-                  />
-                  <span className="text-sm text-muted-foreground">tokens</span>
-                </div>
-              </Row>
-
-              <Block
-                title="思考强度"
-                description="推理模型的思考强度，请求里作为 reasoning_effort 发给端点。默认关：不带这个字段，普通模型不会因为多一个参数报错；端点不支持某一档时也会直接拒绝。"
-              >
-                <ToggleGroup
-                  type="single"
-                  variant="outline"
-                  value={settings.effort}
-                  aria-label="思考强度"
-                  className="flex-wrap justify-start"
-                  onValueChange={(value) => {
-                    if (!value) return;
-                    update({ effort: value as Effort });
-                    toast.success(
-                      value === 'off'
-                        ? '已关闭思考强度'
-                        : `思考强度：${EFFORT_LABEL[value as Effort]}`,
-                    );
-                  }}
-                >
-                  {EFFORT_ORDER.map((id) => (
-                    <ToggleGroupItem key={id} value={id}>
-                      {EFFORT_LABEL[id]}
-                    </ToggleGroupItem>
-                  ))}
-                </ToggleGroup>
-              </Block>
-            </Section>
-
-            <Section id="mode" title="模式" active={step === 'appearance'}>
-              <div
-                className="flex items-center gap-2 rounded-lg border bg-card px-4 py-3 text-sm"
-                data-mode={status.mode}
-              >
-                <span
-                  className={cn(
-                    'size-2 shrink-0 rounded-full',
-                    live ? 'bg-emerald-400' : 'bg-muted-foreground',
-                  )}
-                />
-                <span>当前生效：{statusLine}</span>
-              </div>
-              <Row
-                title="回复来源"
-                description={
-                  live
-                    ? '新消息发给你的端点；请求失败或返回空文本时改用本地模板，气泡标「模板回复」。'
-                    : wantsLive
-                      ? '已选实时，但' +
-                        status.reason +
-                        '。填好端点和 API key 后，新消息才会发给你的端点。'
-                      : '回复来自本地模板，不发任何网络请求。填好端点并选「实时」才会调用模型。'
-                }
-              >
-                <ToggleGroup
-                  type="single"
-                  variant="outline"
-                  value={modeChoice(settings)}
-                  aria-label="回复来源"
-                  onValueChange={(value) => {
-                    if (value) pickMode(value as ModeChoice);
-                  }}
-                >
-                  {MODE_OPTIONS.map((option) => (
-                    <ToggleGroupItem key={option.id} value={option.id}>
-                      {option.label}
-                    </ToggleGroupItem>
-                  ))}
-                </ToggleGroup>
-              </Row>
-            </Section>
-
-            <Section id="appearance" title="外观" active={step === 'appearance'}>
-              <Row
-                htmlFor="set-alpha"
-                title="浮置面板透明度"
-                description="对话面板背景的不透明度，0.4–0.9；文字始终不透明。"
-              >
-                <div className="flex items-center gap-3">
-                  <Slider
-                    id="set-alpha"
-                    min={ALPHA_MIN}
-                    max={ALPHA_MAX}
-                    step={0.02}
-                    value={[settings.panelAlpha]}
-                    label="浮置面板透明度"
-                    className="w-44"
-                    onValueChange={(value) => update({ panelAlpha: value[0] ?? ALPHA_DEFAULT })}
-                    onValueCommit={() => toast.success('透明度已保存')}
-                  />
-                  <span className="w-10 text-right font-mono text-xs text-muted-foreground">
-                    {settings.panelAlpha.toFixed(2)}
-                  </span>
-                </div>
-              </Row>
-
-              <Row
-                title="回复回声"
-                description="她的回复第一句会从舞台落下来，十秒后消失；对话记录不受影响。"
-              >
-                <Switch
-                  id="set-echo"
-                  aria-label="回复回声"
-                  checked={settings.echo}
-                  onCheckedChange={(checked) => {
-                    update({ echo: checked });
-                    toast.success(checked ? '已打开回复回声' : '已关闭回复回声');
-                  }}
-                />
-              </Row>
-
-              <Row
-                title="灯光主题"
-                description="舞台背景、暗角与浮尘一起过渡；选哪套都留在深色里。"
-              >
-                <ToggleGroup
-                  type="single"
-                  variant="outline"
-                  value={light}
-                  aria-label="灯光主题"
-                  className="grid grid-cols-2 gap-1"
-                  onValueChange={(value) => {
-                    const next = LIGHT_THEMES.find((item) => item.id === value);
-                    if (!next) return;
-                    setLight(window.localStorage, next.id);
-                    setLightState(next.id);
-                    toast.success(`灯光：${next.label}`);
-                  }}
-                >
-                  {LIGHT_THEMES.map((item) => (
-                    <ToggleGroupItem key={item.id} value={item.id}>
-                      {item.label}
-                    </ToggleGroupItem>
-                  ))}
-                </ToggleGroup>
-              </Row>
-
-              <Row title="动效" description="关掉舞台浮尘、打字点与面板过渡的动画。">
-                <ToggleGroup
-                  type="single"
-                  variant="outline"
-                  value={settings.motion}
-                  aria-label="动效"
-                  onValueChange={(value) => {
-                    if (!value) return;
-                    update({ motion: value as Motion });
-                    toast.success('动效已保存');
-                  }}
-                >
-                  {MOTION_OPTIONS.map((option) => (
-                    <ToggleGroupItem key={option.id} value={option.id}>
-                      {option.label}
-                    </ToggleGroupItem>
-                  ))}
-                </ToggleGroup>
-              </Row>
-            </Section>
-
-            <Section id="data" title="数据" active={step === 'more'}>
-              <Row
-                title="清空对话历史"
-                description="本机最多 20 段对话、每段 100 条消息会从 localStorage 删除，操作不可撤销。"
-              >
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive">清空对话历史</Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>清空本机的对话历史？</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        本机的最多 20 段对话、每段 100 条消息会从 localStorage
-                        删除，这个操作不可撤销。
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>取消</AlertDialogCancel>
-                      <AlertDialogAction variant="destructive" onClick={clearHistory}>
-                        清空
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </Row>
-
-              <Row title="清除 API key" description="清除后实时模式会退回演示，直到重新填入。">
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" disabled={!apiKey}>
-                      清除 API key
+          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
+            <div className="mx-auto flex w-full max-w-[42rem] flex-col gap-8 px-4 py-5 sm:px-6">
+              <Section
+                id="providers"
+                title="供应商"
+                description="一个供应商是一个 base URL、一把 key 和一组模型；对话发往当前供应商的当前模型。"
+                aside={
+                  settings.providers.length > 0 ? (
+                    <Button
+                      className="max-md:h-11"
+                      size="sm"
+                      type="button"
+                      onClick={() => openEditor(null)}
+                    >
+                      <PlusIcon data-icon="inline-start" />
+                      添加供应商
                     </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>清除当前标签页里的 API key？</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        清除后实时模式会退回演示，直到重新填入。
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>取消</AlertDialogCancel>
-                      <AlertDialogAction onClick={removeKey}>清除</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </Row>
-
-              <Row
-                title="恢复默认设置"
-                description="端点、模型、模型调用与外观都会回到初始值；API key 不动。"
+                  ) : null
+                }
+                card={false}
               >
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline">恢复默认设置</Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>恢复默认设置？</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        端点、模型、模型调用与外观都会回到初始值，API key 不动。
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>取消</AlertDialogCancel>
-                      <AlertDialogAction onClick={reset}>恢复</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </Row>
-            </Section>
+                {settings.providers.length === 0 ? (
+                  <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed px-4 py-10 text-center">
+                    <BoxesIcon className="size-6 text-muted-foreground" aria-hidden="true" />
+                    <p className="text-sm font-medium">还没有供应商</p>
+                    <p className="max-w-[40ch] text-sm leading-normal text-muted-foreground">
+                      供应商就是你要调用的那个端点：base URL、API
+                      key、模型名。添加之后，对话才会离开这台浏览器。
+                    </p>
+                    <Button className="mt-1 max-md:h-11" onClick={() => openEditor(null)}>
+                      <PlusIcon data-icon="inline-start" />
+                      添加第一个供应商
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {settings.providers.map((entry) => (
+                      <ProviderCard
+                        key={entry.id}
+                        provider={entry}
+                        active={entry.id === settings.activeProviderId}
+                        activeModel={settings.activeModel}
+                        onSelectProvider={selectProvider}
+                        onSelectModel={selectModel}
+                        onEdit={openEditor}
+                        onDelete={setPendingDelete}
+                      />
+                    ))}
+                  </div>
+                )}
+              </Section>
 
-            <Section id="about" title="关于" active={step === 'more'}>
-              <AboutRow label="版本" value="0.1.0" />
-              <AboutRow label="角色素材" value="CC BY-NC-SA 4.0 · 非商业演示" />
-              <AboutRow label="登录" value="占位页，不接后端" />
-            </Section>
-          </div>
+              <Section
+                id="usage"
+                title="对话与调用"
+                description="回复从哪来、带多少上下文，以及这一轮最多生成多少。"
+              >
+                <div className="flex items-center gap-2 py-3 text-sm" data-mode={status.mode}>
+                  <span
+                    className={cn(
+                      'size-2 shrink-0 rounded-full',
+                      live ? 'bg-emerald-400' : 'bg-muted-foreground',
+                    )}
+                  />
+                  <span>{statusLine}</span>
+                </div>
 
-          <div className="mt-auto flex items-center justify-between gap-2 border-t pt-3">
-            {previous ? (
-              <Button type="button" variant="ghost" onClick={() => go(previous)}>
-                <ArrowLeftIcon data-icon="inline-start" />
-                上一步
-              </Button>
-            ) : (
-              <span />
-            )}
-            {next && nextLabel ? (
-              <Button type="button" onClick={() => go(next)}>
-                下一步：{nextLabel}
-                <ArrowRightIcon data-icon="inline-end" />
-              </Button>
-            ) : (
-              <DialogClose asChild>
-                <Button type="button">完成</Button>
-              </DialogClose>
-            )}
+                <Row
+                  title="回复来源"
+                  description={
+                    live
+                      ? '新消息发给当前供应商；请求失败或返回空文本时改用本地模板，气泡标「模板回复」。'
+                      : wantsLive
+                        ? '已选实时，但' +
+                          status.reason +
+                          '。补齐供应商的设置后，新消息才会离开这台浏览器。'
+                        : '回复来自本地模板，不发任何网络请求。选「实时」才会调用模型。'
+                  }
+                >
+                  <ToggleGroup
+                    type="single"
+                    variant="outline"
+                    value={modeChoice(settings)}
+                    aria-label="回复来源"
+                    onValueChange={(value) => {
+                      if (value) pickMode(value as ModeChoice);
+                    }}
+                  >
+                    {MODE_OPTIONS.map((option) => (
+                      <ToggleGroupItem
+                        key={option.id}
+                        value={option.id}
+                        className="max-md:min-h-11"
+                      >
+                        {option.label}
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
+                </Row>
+
+                <Row
+                  htmlFor="set-output"
+                  title="输出预算"
+                  description="这一轮最多生成多少 token，思考的 token 也算在里面。推理模型开到高档时给太小，答案会在正文中间截断。"
+                >
+                  <div className="flex items-center gap-2">
+                    <TokenField
+                      id="set-output"
+                      value={settings.maxOutputTokens}
+                      min={OUTPUT_MIN}
+                      max={OUTPUT_MAX}
+                      onCommit={(value) => {
+                        update({ maxOutputTokens: value });
+                        toast.success('输出预算已保存');
+                      }}
+                    />
+                    <span className="text-sm text-muted-foreground">tokens</span>
+                  </div>
+                </Row>
+
+                <Row
+                  htmlFor="set-context"
+                  title="上下文窗口"
+                  description="每次请求带上最近对话的约这么多 token；更早的留在本机。越大越贵，也越慢。"
+                >
+                  <div className="flex items-center gap-2">
+                    <TokenField
+                      id="set-context"
+                      value={settings.contextTokens}
+                      min={CONTEXT_MIN}
+                      max={CONTEXT_MAX}
+                      onCommit={(value) => {
+                        update({ contextTokens: value });
+                        toast.success('上下文窗口已保存');
+                      }}
+                    />
+                    <span className="text-sm text-muted-foreground">tokens</span>
+                  </div>
+                </Row>
+
+                <Row
+                  title="思考强度"
+                  description={
+                    provider
+                      ? `当前供应商启用了 ${provider.efforts.length} 档；这一档作为 reasoning_effort 发出去，「关」不带这个字段。`
+                      : '先添加供应商，再选思考强度。'
+                  }
+                >
+                  <ToggleGroup
+                    type="single"
+                    variant="outline"
+                    value={effortNow}
+                    aria-label="思考强度"
+                    className="flex-wrap justify-start"
+                    disabled={!provider}
+                    onValueChange={(value) => {
+                      if (!value) return;
+                      update({ effort: value as Effort });
+                      toast.success(
+                        value === 'off'
+                          ? '已关闭思考强度'
+                          : `思考强度：${EFFORT_LABEL[value as Effort]}`,
+                      );
+                    }}
+                  >
+                    {effortChoices.map((id) => (
+                      <ToggleGroupItem key={id} value={id} className="max-md:min-h-11">
+                        {EFFORT_LABEL[id]}
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
+                </Row>
+              </Section>
+
+              <Section id="appearance" title="外观" description="舞台与面板的观感，不影响请求。">
+                <Row
+                  htmlFor="set-alpha"
+                  title="浮置面板透明度"
+                  description="对话面板背景的不透明度，0.4–0.9；文字始终不透明。"
+                >
+                  <div className="flex items-center gap-3">
+                    <Slider
+                      id="set-alpha"
+                      min={ALPHA_MIN}
+                      max={ALPHA_MAX}
+                      step={0.02}
+                      value={[settings.panelAlpha]}
+                      label="浮置面板透明度"
+                      className="w-44"
+                      onValueChange={(value) => update({ panelAlpha: value[0] ?? ALPHA_DEFAULT })}
+                      onValueCommit={() => toast.success('透明度已保存')}
+                    />
+                    <span className="w-10 text-right font-mono text-xs text-muted-foreground">
+                      {settings.panelAlpha.toFixed(2)}
+                    </span>
+                  </div>
+                </Row>
+
+                <Row
+                  title="回复回声"
+                  description="她的回复第一句会从舞台落下来，十秒后消失；对话记录不受影响。"
+                >
+                  <Switch
+                    id="set-echo"
+                    aria-label="回复回声"
+                    checked={settings.echo}
+                    onCheckedChange={(checked) => {
+                      update({ echo: checked });
+                      toast.success(checked ? '已打开回复回声' : '已关闭回复回声');
+                    }}
+                  />
+                </Row>
+
+                <Row
+                  title="灯光主题"
+                  description="舞台背景、暗角与浮尘一起过渡；选哪套都留在深色里。"
+                >
+                  <ToggleGroup
+                    type="single"
+                    variant="outline"
+                    value={light}
+                    aria-label="灯光主题"
+                    className="grid grid-cols-2 gap-1"
+                    onValueChange={(value) => {
+                      const next = LIGHT_THEMES.find((item) => item.id === value);
+                      if (!next) return;
+                      setLight(window.localStorage, next.id);
+                      setLightState(next.id);
+                      toast.success(`灯光：${next.label}`);
+                    }}
+                  >
+                    {LIGHT_THEMES.map((item) => (
+                      <ToggleGroupItem key={item.id} value={item.id} className="max-md:min-h-11">
+                        {item.label}
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
+                </Row>
+
+                <Row title="动效" description="关掉舞台浮尘、打字点与面板过渡的动画。">
+                  <ToggleGroup
+                    type="single"
+                    variant="outline"
+                    value={settings.motion}
+                    aria-label="动效"
+                    onValueChange={(value) => {
+                      if (!value) return;
+                      update({ motion: value as Motion });
+                      toast.success('动效已保存');
+                    }}
+                  >
+                    {MOTION_OPTIONS.map((option) => (
+                      <ToggleGroupItem
+                        key={option.id}
+                        value={option.id}
+                        className="max-md:min-h-11"
+                      >
+                        {option.label}
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
+                </Row>
+              </Section>
+
+              <Section id="data" title="数据" description="这些都在本机，服务器上没有副本。">
+                <Row
+                  title="清空对话历史"
+                  description="本机最多 20 段对话、每段 100 条消息会从 localStorage 删除，操作不可撤销。"
+                >
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" className="max-md:h-11">
+                        清空对话历史
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>清空本机的对话历史？</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          本机的最多 20 段对话、每段 100 条消息会从 localStorage
+                          删除，这个操作不可撤销。
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>取消</AlertDialogCancel>
+                        <AlertDialogAction variant="destructive" onClick={clearHistory}>
+                          清空
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </Row>
+
+                <Row
+                  title="清除 API key"
+                  description="每个供应商的 key 一起清除；实时模式会退回演示，直到重新填入。"
+                >
+                  <Button
+                    variant="outline"
+                    className="max-md:h-11"
+                    disabled={!apiKey}
+                    onClick={removeKeys}
+                  >
+                    清除全部 key
+                  </Button>
+                </Row>
+
+                <Row
+                  title="恢复默认设置"
+                  description="供应商、模型调用与外观都会回到初始值；API key 不动。"
+                >
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" className="max-md:h-11">
+                        恢复默认设置
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>恢复默认设置？</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          供应商、模型调用与外观都会回到初始值，API key 不动。
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>取消</AlertDialogCancel>
+                        <AlertDialogAction onClick={reset}>恢复</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </Row>
+              </Section>
+
+              <Section id="about" title="关于">
+                <AboutRow label="版本" value="0.1.0" />
+                <AboutRow label="角色素材" value="CC BY-NC-SA 4.0 · 非商业演示" />
+                <AboutRow label="登录" value="占位页，不接后端" />
+              </Section>
+            </div>
           </div>
         </div>
       </div>
+
+      <ProviderDialog
+        open={editor.open}
+        provider={editor.provider}
+        initialKey={editor.key}
+        onOpenChange={(open) => setEditor((current) => ({ ...current, open }))}
+        onSubmit={saveProvider}
+      />
+
+      <AlertDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>删除供应商「{pendingDelete?.name}」？</AlertDialogTitle>
+            <AlertDialogDescription>
+              它的 base URL、模型和 API key 会从这台浏览器删除，对话记录不受影响。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (pendingDelete) deleteProvider(pendingDelete);
+              }}
+            >
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

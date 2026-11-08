@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ChatController } from '@/lib/chat/controller';
-import { describeMode, loadSettings, readApiKey } from '@/lib/chat/settings';
+import { currentApiKey, describeMode, loadSettings } from '@/lib/chat/settings';
 import type { ChatMode } from '@/lib/chat/types';
 import { useChatController } from '@/lib/chat/use-chat-controller';
 import { requestSettings } from '@/lib/ui/open-settings';
@@ -20,7 +20,8 @@ interface SidebarProps {
 
 function readMode(): ChatMode {
   const settings = loadSettings(window.localStorage);
-  return describeMode(settings, readApiKey(window.sessionStorage, window.localStorage)).mode;
+  return describeMode(settings, currentApiKey(settings, window.sessionStorage, window.localStorage))
+    .mode;
 }
 
 function Brand() {

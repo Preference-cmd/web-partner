@@ -36,7 +36,7 @@ export default function SettingsDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent
-        className="flex max-h-[92vh] w-[min(calc(100vw-2rem),72rem)] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-h-[85vh]"
+        className="flex h-[92dvh] w-[min(calc(100vw-1rem),60rem)] max-w-none flex-col gap-0 overflow-hidden p-0 sm:h-[min(760px,90dvh)] sm:w-[min(calc(100vw-2rem),60rem)]"
         onCloseAutoFocus={(event) => {
           const opener = openerRef.current;
           if (!opener?.isConnected) return;
@@ -47,11 +47,10 @@ export default function SettingsDialog() {
         <header className="flex flex-col gap-1 border-b px-4 py-3 pr-14 sm:px-6">
           <DialogTitle className="text-base font-semibold">设置</DialogTitle>
           <DialogDescription>
-            接入你的模型分三步：连接、测试、模式与外观。改完即保存；API key
-            只留在当前标签页，关掉就没了。
+            供应商提供端点、模型与 key；改完即保存。API key 只留在当前标签页，关掉浏览器就没了。
           </DialogDescription>
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">
+        <div className="min-h-0 flex-1">
           <SettingsPanel />
         </div>
       </DialogContent>

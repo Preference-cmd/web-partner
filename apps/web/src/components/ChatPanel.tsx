@@ -77,13 +77,18 @@ import {
   TEXT_FILE_MIME_TYPES,
 } from '@/lib/chat/llm';
 import {
+  activeProvider,
+  activeTarget,
   applyAppearance,
+  clampEffort,
+  currentApiKey,
   DEFAULT_SETTINGS,
   EFFORT_LABEL,
-  EFFORT_ORDER,
   type Effort,
+  effortOptions,
   loadSettings,
-  readApiKey,
+  modelLabel as modelName,
+  normalizeActive,
   resolveMode,
   type Settings,
   saveSettings,
@@ -300,7 +305,7 @@ export default function ChatPanel() {
     const stored = loadSettings(window.localStorage);
     applyAppearance(document.documentElement, stored);
     setSettings(stored);
-    setMode(resolveMode(stored, readApiKey(window.sessionStorage, window.localStorage)));
+    setMode(resolveMode(stored, currentApiKey(stored, window.sessionStorage, window.localStorage)));
     if (stored.panelHeight !== null) setManualHeight(clampPanelHeight(stored.panelHeight));
 
     // Resizing the window changes both the phone breakpoint and the tallest the panel may be.
@@ -323,7 +328,7 @@ export default function ChatPanel() {
     const read = (): void => {
       const next = loadSettings(window.localStorage);
       setSettings(next);
-      setMode(resolveMode(next, readApiKey(window.sessionStorage, window.localStorage)));
+      setMode(resolveMode(next, currentApiKey(next, window.sessionStorage, window.localStorage)));
     };
     window.addEventListener(SETTINGS_CHANGED_EVENT, read);
     return () => window.removeEventListener(SETTINGS_CHANGED_EVENT, read);
@@ -566,15 +571,18 @@ export default function ChatPanel() {
     persistHeight(heightRef.current);
   }
 
-  function pickModel(model: string): void {
-    const next = { ...settings, model };
+  /** One radio group per provider; the value carries both halves of the choice. */
+  function pickModel(value: string): void {
+    const [providerId, model] = value.split('\u0000');
+    if (!providerId || !model) return;
+    const next = normalizeActive({ ...settings, activeProviderId: providerId, activeModel: model });
     setSettings(next);
     saveSettings(window.localStorage, next);
     announceSettings();
   }
 
   function pickEffort(effort: Effort): void {
-    const next = { ...settings, effort };
+    const next = { ...settings, effort: clampEffort(effort, activeProvider(settings)) };
     setSettings(next);
     saveSettings(window.localStorage, next);
     announceSettings();
@@ -599,32 +607,54 @@ export default function ChatPanel() {
     }
   }
 
-  const modelLabel = settings.model.trim() || '未设模型';
-  const effortLabel = EFFORT_LABEL[settings.effort];
+  const provider = activeProvider(settings);
+  const present = activeTarget(settings);
+  const modelTag = present ? modelName(present.model) : '未设模型';
+  const effortNow = clampEffort(settings.effort, provider);
+  const effortLabel = EFFORT_LABEL[effortNow];
 
   const modelItems =
-    settings.modelPresets.length === 0 ? (
-      <DropdownMenuItem disabled>还没有保存的模型</DropdownMenuItem>
+    settings.providers.length === 0 ? (
+      <DropdownMenuItem onSelect={() => requestSettings('providers')}>
+        还没有供应商，去添加…
+      </DropdownMenuItem>
     ) : (
-      <DropdownMenuRadioGroup value={settings.model} onValueChange={pickModel}>
-        {settings.modelPresets.map((preset) => (
-          <DropdownMenuRadioItem key={preset.id} value={preset.model}>
-            {preset.label}
-          </DropdownMenuRadioItem>
-        ))}
-      </DropdownMenuRadioGroup>
+      settings.providers.map((entry) => (
+        <div key={entry.id}>
+          <DropdownMenuLabel className="text-xs text-muted-foreground">
+            {entry.name}
+          </DropdownMenuLabel>
+          {entry.models.length === 0 ? (
+            <DropdownMenuItem disabled>这个供应商还没有模型</DropdownMenuItem>
+          ) : (
+            <DropdownMenuRadioGroup
+              value={entry.id === settings.activeProviderId ? settings.activeModel : ''}
+              onValueChange={(model) => pickModel(`${entry.id}\u0000${model}`)}
+            >
+              {entry.models.map((model) => (
+                <DropdownMenuRadioItem key={model.id} value={model.model}>
+                  {modelName(model)}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          )}
+        </div>
+      ))
     );
 
   const effortItems = (
     <DropdownMenuRadioGroup
-      value={settings.effort}
+      value={effortNow}
       onValueChange={(value) => pickEffort(value as Effort)}
     >
-      {EFFORT_ORDER.map((id) => (
+      {effortOptions(provider).map((id) => (
         <DropdownMenuRadioItem key={id} value={id}>
           {EFFORT_LABEL[id]}
         </DropdownMenuRadioItem>
       ))}
+      {provider && provider.efforts.length === 0 ? (
+        <DropdownMenuItem disabled>这个供应商没开思考强度</DropdownMenuItem>
+      ) : null}
     </DropdownMenuRadioGroup>
   );
 
@@ -842,9 +872,9 @@ export default function ChatPanel() {
                     size="sm"
                     variant="outline"
                     className="max-w-32 rounded-full"
-                    aria-label={`模型与努力：${modelLabel}，${effortLabel}`}
+                    aria-label={`模型与努力：${modelTag}，${effortLabel}`}
                   >
-                    <span className="truncate">{modelLabel}</span>
+                    <span className="truncate">{modelTag}</span>
                     <ChevronDownIcon className="size-3.5 opacity-60" />
                   </InputGroupButton>
                 </DropdownMenuTrigger>
@@ -855,7 +885,9 @@ export default function ChatPanel() {
                   <DropdownMenuLabel>努力</DropdownMenuLabel>
                   {effortItems}
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={() => requestSettings()}>管理模型…</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => requestSettings('providers')}>
+                    管理供应商…
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
@@ -866,9 +898,9 @@ export default function ChatPanel() {
                       size="sm"
                       variant="outline"
                       className="max-w-36 rounded-full"
-                      aria-label={`模型：${modelLabel}`}
+                      aria-label={`模型：${modelTag}`}
                     >
-                      <span className="truncate">{modelLabel}</span>
+                      <span className="truncate">{modelTag}</span>
                       <ChevronDownIcon className="size-3.5 opacity-60" />
                     </InputGroupButton>
                   </DropdownMenuTrigger>
@@ -876,8 +908,8 @@ export default function ChatPanel() {
                     <DropdownMenuLabel>模型</DropdownMenuLabel>
                     {modelItems}
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={() => requestSettings()}>
-                      管理模型…
+                    <DropdownMenuItem onSelect={() => requestSettings('providers')}>
+                      管理供应商…
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
