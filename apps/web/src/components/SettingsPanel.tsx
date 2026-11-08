@@ -366,13 +366,6 @@ export default function SettingsPanel() {
                   </ToggleGroup>
                   <FieldDescription>关掉舞台浮尘、打字点与面板过渡的动画。</FieldDescription>
                 </Field>
-
-                <Field>
-                  <FieldLabel>灯光主题</FieldLabel>
-                  <FieldDescription>
-                    等角色渲染器落地后在这里选；现在的舞台固定冷夜空。
-                  </FieldDescription>
-                </Field>
               </FieldGroup>
             </CardContent>
           </Card>

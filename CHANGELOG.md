@@ -63,6 +63,9 @@ change states its migration at the top of the release it ships in.
 
 ### Changed
 
+- Copy that described unfinished plans is gone: the login page states that the
+  demo has no account system, and the settings page no longer shows a lighting
+  row that only pointed at the debug drawer.
 - The deploy workflow now targets the single `partner-web` Worker and needs
   only `CLOUDFLARE_API_TOKEN`: the `environment` input and `--env` are gone, and
   `CLOUDFLARE_ACCOUNT_ID` is optional when the token can see one account.
