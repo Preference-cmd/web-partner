@@ -123,12 +123,17 @@ function InputGroupText({ className, ...props }: React.ComponentProps<'span'>) {
   );
 }
 
+// The group paints the focus ring, so a control inside it keeps none of its own;
+// without the offset reset the offset band draws a dark line inside the field.
+const controlFocus = 'focus-visible:ring-0 focus-visible:ring-offset-0';
+
 function InputGroupInput({ className, ...props }: React.ComponentProps<'input'>) {
   return (
     <Input
       data-slot="input-group-control"
       className={cn(
-        'flex-1 rounded-none border-0 bg-transparent shadow-none focus-visible:ring-0 dark:bg-transparent',
+        'flex-1 rounded-none border-0 bg-transparent shadow-none dark:bg-transparent',
+        controlFocus,
         className,
       )}
       {...props}
@@ -141,7 +146,8 @@ function InputGroupTextarea({ className, ...props }: React.ComponentProps<'texta
     <Textarea
       data-slot="input-group-control"
       className={cn(
-        'flex-1 resize-none rounded-none border-0 bg-transparent py-3 shadow-none focus-visible:ring-0 dark:bg-transparent',
+        'flex-1 resize-none rounded-none border-0 bg-transparent py-3 shadow-none dark:bg-transparent',
+        controlFocus,
         className,
       )}
       {...props}
