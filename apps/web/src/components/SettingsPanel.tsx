@@ -990,7 +990,7 @@ export default function SettingsPanel() {
                   </AlertDialog>
                 </Row>
                 <AboutRow label="版本" value="0.1.0" />
-                <AboutRow label="角色素材" value="CC BY-NC-SA 4.0 · 非商业演示" />
+                <AboutRow label="角色素材" value="版权归原作者 · 禁止商用" />
                 <AboutRow label="登录" value="占位页，不接后端" />
               </Section>
             </div>

@@ -42,8 +42,8 @@ import { useMediaQuery } from '@/lib/ui/use-media-query';
 const EMOTIONS: ReadonlyArray<Emotion> = ['idle', 'happy', 'shy', 'sleepy'];
 
 const RENDERERS: ReadonlyArray<{ id: RendererKind; label: string; hint: string }> = [
-  { id: 'canvas2d', label: '动画', hint: '呼吸、摆动与交叉淡化' },
-  { id: 'static', label: '静帧', hint: '只画一帧，不跑动画循环' },
+  { id: 'canvas2d', label: '动画', hint: '帧序列循环、一次性动作与交叉淡化' },
+  { id: 'static', label: '静帧', hint: '每个状态只画一帧，不跑动画循环' },
 ];
 
 type ModeChoice = 'demo' | 'live' | 'forceDemo';
@@ -293,7 +293,7 @@ export default function DebugPanel() {
           <Row label="模式" value={modeStatus.mode === 'live' ? '实时' : '演示'} />
         </dl>
         <p className="mt-2 text-xs text-muted-foreground">
-          {`2D ${snapshot.context2d ? '✓' : '✗'} · 素材 ${snapshot.stage === 'ready' ? '4/4' : '—'} · 减弱动效 ${snapshot.reduced ? '开' : '关'}`}
+          {`2D ${snapshot.context2d ? '✓' : '✗'} · 素材 ${snapshot.stage === 'ready' ? '6/6' : '—'} · 减弱动效 ${snapshot.reduced ? '开' : '关'}`}
         </p>
       </Section>
 

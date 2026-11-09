@@ -284,6 +284,8 @@ export default function ChatPanel() {
 
   // The reply's first sentence also lands on the stage, once per reply.
   const echoedRef = useRef<string | null>(null);
+  // One failed take per reply, not one per streamed token.
+  const failedReply = useRef<string | null>(null);
   useEffect(() => {
     const last = [...messages]
       .reverse()
@@ -463,6 +465,34 @@ export default function ChatPanel() {
   const lastReply = [...messages]
     .reverse()
     .find((message) => message.role === 'assistant' && message.content);
+  const awaiting =
+    streaming && last?.role === 'assistant' && last.status === 'streaming' && !last.content;
+
+  // The stage reads this attribute and holds the waiting loop until the first token.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.chat = awaiting ? 'waiting' : 'idle';
+    return () => {
+      delete root.dataset.chat;
+    };
+  }, [awaiting]);
+
+  // A fallback is the one reply the stage answers with a failed take.
+  useEffect(() => {
+    const done = [...messages]
+      .reverse()
+      .find((message) => message.role === 'assistant' && message.status === 'done');
+    if (!done) return;
+    if (failedReply.current === null) {
+      failedReply.current = done.id;
+      return;
+    }
+    if (failedReply.current === done.id) return;
+    failedReply.current = done.id;
+    if (done.source === 'fallback') {
+      window.dispatchEvent(new CustomEvent('partner:character', { detail: { pose: 'failed' } }));
+    }
+  }, [messages]);
 
   function clear(): void {
     controller.clear();

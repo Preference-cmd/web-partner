@@ -121,6 +121,8 @@ const { title = "伴侣小生命" } = Astro.props;
       document.addEventListener("astro:before-swap", () => {
         dispose?.();
         dispose = undefined;
+        // The next page may have no chat island; do not leave the stage waiting.
+        delete document.documentElement.dataset.chat;
       });
       // The panel saves the choice, then asks the stage to pick it up.
       window.addEventListener("partner:renderer", (event) => {

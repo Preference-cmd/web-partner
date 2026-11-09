@@ -144,7 +144,9 @@ function SidebarBody({
           >
             非官方、非商业演示
             <br />
-            角色素材 CC BY-NC-SA 4.0
+            素材版权归原作者
+            <br />
+            本项目不持有所有权 · 禁止商用
           </a>
         ) : null}
       </div>

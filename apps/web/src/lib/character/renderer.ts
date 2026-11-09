@@ -1,25 +1,26 @@
 import type { Emotion } from '@/lib/chat/types';
 import {
-  breathPeriod,
+  ANIMATIONS,
+  type AnimationName,
   CROSSFADE_MS,
   crossfadeProgress,
   dwellRemaining,
+  EMOTION_ANIMATION,
+  EMOTION_CUES,
+  FRAME_HEIGHT,
+  FRAME_WIDTH,
+  frameAt,
+  isAnimation,
   isPose,
-  MAX_SLICE_PX,
-  MAX_SWAY_DEG,
-  POSE_FILES,
-  SLICES,
-  sliceOffset,
-  swayAngle,
+  STILL_FRAME,
+  totalDuration,
 } from './math';
 
-/** Every pose ships on the same 512x512 canvas, so one scale keeps them aligned. */
-const IMAGE_SIZE = 512;
 const MAX_DPR = 2;
 /** One FPS sample a second is enough for the panel; counting every frame is not. */
 const FPS_WINDOW_MS = 1000;
 
-/** The stage either animates the canvas or holds one still frame. */
+/** The stage either plays the frame sequences or holds one still. */
 export type RendererKind = 'canvas2d' | 'static';
 
 export interface CharacterHandle {
@@ -28,6 +29,13 @@ export interface CharacterHandle {
 
 export interface CharacterOptions {
   renderer?: RendererKind;
+}
+
+interface Playing {
+  name: AnimationName;
+  startedAt: number;
+  /** A reaction from the stage or the chat outranks a mood's one-shot. */
+  manual?: boolean;
 }
 
 function prefersReducedMotion(): boolean {
@@ -42,20 +50,25 @@ function readEmotion(): Emotion {
   return isPose(value) ? value : 'idle';
 }
 
-function loadPose(emotion: Emotion): Promise<HTMLImageElement> {
+function readWaiting(): boolean {
+  return document.documentElement.dataset.chat === 'waiting';
+}
+
+function loadFrames(name: AnimationName): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
     image.decoding = 'async';
     image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error(`character pose failed: ${emotion}`));
-    image.src = POSE_FILES[emotion];
+    image.onerror = () => reject(new Error(`character frames failed: ${name}`));
+    image.src = ANIMATIONS[name].file;
   });
 }
 
 /**
- * Draws the four poses on a 2D canvas: sliced breathing, a slow sway around the
- * feet, and a crossfade when the chat writes a new emotion. Missing images or a
- * lost 2D context leave the stage to its aura instead of throwing.
+ * Plays the six frame strips: an idle loop, one-shot greetings and reactions,
+ * and the conversation's waiting state. Reduced motion and the static renderer
+ * hold one still. Missing images or a lost 2D context leave the stage to its
+ * fallback instead of throwing.
  */
 export function mountCharacter(
   canvas: HTMLCanvasElement,
@@ -69,77 +82,86 @@ export function mountCharacter(
     return { dispose: () => undefined };
   }
   const context: CanvasRenderingContext2D = maybeContext;
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = 'high';
 
-  const images = new Map<Emotion, HTMLImageElement>();
+  const images = new Map<AnimationName, HTMLImageElement>();
   let ready = false;
   let disposed = false;
-  let current: Emotion = readEmotion();
-  let previous: Emotion | null = null;
-  let pending: Emotion | null = null;
-  let startedAt = 0;
+  let emotion: Emotion = readEmotion();
+  let waiting = readWaiting();
+  let cue: Playing | null = null;
+  let current: Playing | null = null;
+  let transition: { name: AnimationName; frame: number; startedAt: number } | null = null;
   let poseChangedAt = 0;
+  let pendingEmotion: Emotion | null = null;
   let dwellTimer: number | undefined;
   let frameId = 0;
   let frames = 0;
   let sampledAt = 0;
   let width = 1;
   let height = 1;
-  let scale = 1;
+  let dpr = 1;
   let reduced = prefersReducedMotion();
 
-  // A still frame and a reduced-motion stage share the same drawing path.
   function frozen(): boolean {
     return reduced || kind === 'static';
   }
 
-  function draw(time: number): void {
-    context.setTransform(scale, 0, 0, scale, 0, 0);
-    context.clearRect(0, 0, width, height);
-    if (!ready) return;
-
-    const period = breathPeriod(current);
-    const clock = frozen() ? 0 : time;
-    const sway = frozen() ? 0 : swayAngle(time, period, MAX_SWAY_DEG);
-
-    context.save();
-    context.translate(width / 2, height);
-    context.rotate((sway * Math.PI) / 180);
-    context.translate(-width / 2, -height);
-
-    const progress = previous ? crossfadeProgress(time - startedAt, CROSSFADE_MS) : 1;
-    if (previous) drawPose(previous, 1 - progress, clock, period);
-    if (progress > 0) drawPose(current, progress, clock, period);
-    if (previous && progress >= 1) previous = null;
-
-    context.restore();
+  /** Where the figure rests once no one-shot is playing. */
+  function restingName(): AnimationName {
+    if (frozen()) return waiting ? 'waiting' : EMOTION_ANIMATION[emotion];
+    if (waiting || emotion === 'sleepy') return 'waiting';
+    return 'idle';
   }
 
-  function drawPose(emotion: Emotion, alpha: number, time: number, period: number): void {
-    const image = images.get(emotion);
+  function visibleName(): AnimationName {
+    if (frozen()) return restingName();
+    return cue?.name ?? restingName();
+  }
+
+  function frameFor(entry: Playing, now: number): number {
+    if (frozen()) return STILL_FRAME[entry.name];
+    return frameAt(ANIMATIONS[entry.name], now - entry.startedAt);
+  }
+
+  function drawCell(name: AnimationName, frame: number, alpha: number): void {
+    const image = images.get(name);
     if (!image?.naturalWidth) return;
-
-    const side = Math.min(width, height);
-    const left = (width - side) / 2;
-    const top = height - side;
-    const sliceHeight = side / SLICES;
-    const sourceHeight = IMAGE_SIZE / SLICES;
-
+    // One cell fills the square stage by height, so the figure keeps its feet.
+    const fit = Math.min(width / FRAME_WIDTH, height / FRAME_HEIGHT);
+    const cellWidth = FRAME_WIDTH * fit;
+    const cellHeight = FRAME_HEIGHT * fit;
     context.globalAlpha = Math.max(0, Math.min(1, alpha));
-    for (let index = 0; index < SLICES; index++) {
-      const offset = frozen() ? 0 : sliceOffset(index, SLICES, time, period, MAX_SLICE_PX);
-      context.drawImage(
-        image,
-        0,
-        index * sourceHeight,
-        IMAGE_SIZE,
-        sourceHeight,
-        left,
-        top + index * sliceHeight + offset,
-        side,
-        sliceHeight + 0.6,
-      );
-    }
+    context.drawImage(
+      image,
+      frame * FRAME_WIDTH,
+      0,
+      FRAME_WIDTH,
+      FRAME_HEIGHT,
+      (width - cellWidth) / 2,
+      height - cellHeight,
+      cellWidth,
+      cellHeight,
+    );
     context.globalAlpha = 1;
+  }
+
+  function draw(time: number): void {
+    context.setTransform(dpr, 0, 0, dpr, 0, 0);
+    context.clearRect(0, 0, width, height);
+    if (!ready || !current) return;
+
+    const now = frozen() ? 0 : time;
+    if (transition && !frozen()) {
+      const progress = crossfadeProgress(now - transition.startedAt, CROSSFADE_MS);
+      drawCell(transition.name, transition.frame, 1 - progress);
+      drawCell(current.name, frameFor(current, now), progress);
+      if (progress >= 1) transition = null;
+      return;
+    }
+    transition = null;
+    drawCell(current.name, frameFor(current, now), 1);
   }
 
   // The panel reads one sample a second from the dataset; a stopped stage has none.
@@ -157,15 +179,23 @@ export function mountCharacter(
     sampledAt = timestamp;
   }
 
+  function finishCue(now: number): void {
+    if (!cue) return;
+    if (now - cue.startedAt < totalDuration(ANIMATIONS[cue.name])) return;
+    cue = null;
+    present(now);
+  }
+
   function loop(timestamp: number): void {
     if (disposed || frozen()) return;
     frameId = requestAnimationFrame(loop);
+    finishCue(timestamp);
     draw(timestamp);
     sampleFps(timestamp);
   }
 
   function start(): void {
-    if (disposed || frozen() || frameId !== 0) return;
+    if (disposed || frozen() || !ready || document.hidden || frameId !== 0) return;
     frameId = requestAnimationFrame(loop);
   }
 
@@ -181,67 +211,98 @@ export function mountCharacter(
     const rect = canvas.getBoundingClientRect();
     width = Math.max(1, Math.round(rect.width));
     height = Math.max(1, Math.round(rect.height));
-    scale = Math.min(MAX_DPR, window.devicePixelRatio || 1);
-    canvas.width = Math.max(1, Math.round(width * scale));
-    canvas.height = Math.max(1, Math.round(height * scale));
+    dpr = Math.min(MAX_DPR, window.devicePixelRatio || 1);
+    canvas.width = Math.max(1, Math.round(width * dpr));
+    canvas.height = Math.max(1, Math.round(height * dpr));
     draw(performance.now());
   }
 
-  function applyPose(next: Emotion): void {
-    if (next === current) return;
-    previous = current;
-    current = next;
-    startedAt = performance.now();
-    poseChangedAt = startedAt;
-    host.dataset.pose = next;
-    if (frozen()) {
-      previous = null;
-      draw(startedAt);
-      return;
+  /** Switch to whatever should be on screen, fading out the previous frame. */
+  function present(now: number, restart = false): void {
+    const name = visibleName();
+    if (current?.name === name && !restart) return;
+    const moving = !frozen() && ready;
+    transition =
+      moving && current
+        ? {
+            name: current.name,
+            frame: frameAt(ANIMATIONS[current.name], now - current.startedAt),
+            startedAt: now,
+          }
+        : null;
+    current = { name, startedAt: now };
+    host.dataset.pose = name;
+    draw(now);
+    if (!frozen()) start();
+  }
+
+  function playCue(name: AnimationName, now = performance.now()): void {
+    if (disposed || frozen()) return;
+    cue = { name, startedAt: now, manual: true };
+    present(now, true);
+  }
+
+  function applyEmotion(next: Emotion, now: number): void {
+    if (next === emotion) return;
+    emotion = next;
+    poseChangedAt = now;
+    const cueName = EMOTION_CUES[next];
+    let restart = false;
+    if (!frozen() && cueName && !cue?.manual) {
+      cue = { name: cueName, startedAt: now };
+      restart = true;
+    } else if (!cue?.manual) {
+      cue = null;
     }
-    start();
+    present(now, restart);
   }
 
   // A mood holds for two seconds so quick turns do not flash between poses.
   function setEmotion(next: Emotion): void {
-    if (next === current || next === pending) return;
+    if (next === emotion || next === pendingEmotion) return;
     const wait = dwellRemaining(poseChangedAt, performance.now());
     if (wait > 0) {
-      pending = next;
-      if (dwellTimer === undefined) {
-        dwellTimer = window.setTimeout(() => {
-          dwellTimer = undefined;
-          const queued = pending;
-          pending = null;
-          if (queued) applyPose(queued);
-        }, wait);
-      }
+      pendingEmotion = next;
+      if (dwellTimer !== undefined) window.clearTimeout(dwellTimer);
+      dwellTimer = window.setTimeout(() => {
+        dwellTimer = undefined;
+        const queued = pendingEmotion;
+        pendingEmotion = null;
+        if (queued) applyEmotion(queued, performance.now());
+      }, wait);
       return;
     }
-    pending = null;
-    applyPose(next);
+    if (dwellTimer !== undefined) {
+      window.clearTimeout(dwellTimer);
+      dwellTimer = undefined;
+    }
+    pendingEmotion = null;
+    applyEmotion(next, performance.now());
   }
 
   function syncMotion(): void {
     const next = prefersReducedMotion();
     if (next === reduced) return;
     reduced = next;
-    if (reduced) {
-      stop();
-      previous = null;
-      draw(performance.now());
-    } else {
-      start();
-    }
+    cue = null;
+    transition = null;
+    if (reduced) stop();
+    present(performance.now(), true);
+    if (!reduced) start();
   }
 
   const observer = new MutationObserver(() => {
+    const nextWaiting = readWaiting();
+    if (nextWaiting !== waiting) {
+      waiting = nextWaiting;
+      present(performance.now());
+    }
     setEmotion(readEmotion());
     syncMotion();
   });
   observer.observe(document.documentElement, {
     attributes: true,
-    attributeFilter: ['data-emotion', 'data-motion'],
+    attributeFilter: ['data-emotion', 'data-motion', 'data-chat'],
   });
 
   const resizeObserver = new ResizeObserver(() => resize());
@@ -253,23 +314,37 @@ export function mountCharacter(
   }
   document.addEventListener('visibilitychange', onVisibility);
 
+  function onTouch(): void {
+    playCue('waving');
+  }
+  window.addEventListener('partner:touch', onTouch);
+
+  function onCue(event: Event): void {
+    const pose = (event as CustomEvent<{ pose?: string }>).detail?.pose;
+    if (isAnimation(pose)) playCue(pose);
+  }
+  window.addEventListener('partner:character', onCue);
+
   const media = window.matchMedia('(prefers-reduced-motion: reduce)');
   media.addEventListener('change', syncMotion);
 
   host.dataset.renderer = kind;
-  host.dataset.pose = current;
+  host.dataset.pose = restingName();
   resize();
 
-  Promise.all((Object.keys(POSE_FILES) as Emotion[]).map((pose) => loadPose(pose)))
+  const names = Object.keys(ANIMATIONS) as AnimationName[];
+  Promise.all(names.map((name) => loadFrames(name)))
     .then((loaded) => {
       if (disposed) return;
-      for (const [index, pose] of (Object.keys(POSE_FILES) as Emotion[]).entries()) {
+      for (const [index, name] of names.entries()) {
         const image = loaded[index];
-        if (image) images.set(pose, image);
+        if (image) images.set(name, image);
       }
       ready = true;
       host.dataset.characterState = 'ready';
-      draw(performance.now());
+      const now = performance.now();
+      if (!frozen()) cue = { name: 'waving', startedAt: now, manual: false };
+      present(now, true);
       start();
     })
     .catch(() => {
@@ -285,6 +360,8 @@ export function mountCharacter(
       resizeObserver.disconnect();
       media.removeEventListener('change', syncMotion);
       document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('partner:touch', onTouch);
+      window.removeEventListener('partner:character', onCue);
       delete host.dataset.characterState;
       delete host.dataset.pose;
       delete host.dataset.renderer;

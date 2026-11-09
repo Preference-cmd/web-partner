@@ -15,10 +15,13 @@ the keys stay in the browser.
 
 ## Features
 
-- **A character that reacts.** Four 512×512 poses (idle, happy, shy, sleepy) are
-  drawn on a Canvas 2D canvas and breathe, sway and crossfade with the mood. She
-  is also a button: a tap is a head pat, a held press or Enter says a line, and
-  each reply drops its first sentence onto the stage (switchable in 外观).
+- **A character that reacts.** Six frame sequences (idle, waving, jumping,
+  failed, waiting, review) play on a Canvas 2D canvas: she blinks and swings her
+  tail at rest, waves when the stage opens or she is patted, jumps when happy,
+  looks down when shy, and waits while a reply is in flight. A fallback reply
+  gets a failed take. Reduced motion holds one frame. She is also a button: a
+  tap is a head pat, a held press or Enter says a line, and each reply drops its
+  first sentence onto the stage (switchable in 外观).
 - **Chat that works before setup.** Demo replies stream from local templates,
   and three quick actions answer without a model.
 - **Bring your own model.** A provider is one OpenAI-compatible base URL, a key
@@ -106,9 +109,14 @@ previous version.
 
 ## License
 
-The code is MIT (see [`LICENSE`](LICENSE)). The character art is
-**CC BY-NC-SA 4.0**, non-commercial and share-alike, by Sutera-Diffusus based on
-a character by 上善无形; see [`NOTICE.md`](NOTICE.md) and
+The code is MIT (see [`LICENSE`](LICENSE)). The character art is separate: the
+six frame sequences are cropped from
+[codex-pet-DeepSeek-girl](https://github.com/xpy12367/codex-pet-DeepSeek-girl) by
+xpy12367, a repository that carries no license. This project claims no ownership
+of those frames and permits no commercial use of them; they appear only in this
+non-commercial demo. The character is by 上善无形, and the earlier stills came
+from [dsh-whale-musume](https://github.com/Sutera-Diffusus/dsh-whale-musume)
+under CC BY-NC-SA 4.0. See [`NOTICE.md`](NOTICE.md) and
 [`ATTRIBUTION.md`](apps/web/public/character/ATTRIBUTION.md). The preview in
 `docs/` shows the art and carries the same terms; replace the art before any
 commercial use.
