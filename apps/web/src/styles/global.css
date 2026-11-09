@@ -354,17 +354,17 @@ html {
 }
 
 html[data-light="night"] {
-  --card: color-mix(in oklab, oklch(0.205 0 0) 97%, oklch(0.55 0.12 255) 3%);
+  --card: color-mix(in oklab, oklch(0.205 0 0) 90%, oklch(0.55 0.12 255) 10%);
 }
 
 html[data-light="dusk"] {
-  --card: color-mix(in oklab, oklch(0.205 0 0) 96%, oklch(0.6 0.12 55) 4%);
+  --card: color-mix(in oklab, oklch(0.205 0 0) 90%, oklch(0.6 0.12 55) 10%);
 }
 
 html[data-light="deep"] {
-  --card: color-mix(in oklab, oklch(0.205 0 0) 98%, oklch(0.4 0.03 265) 2%);
+  --card: color-mix(in oklab, oklch(0.205 0 0) 94%, oklch(0.4 0.03 265) 6%);
 }
 
 html[data-light="dawn"] {
-  --card: color-mix(in oklab, oklch(0.205 0 0) 96%, oklch(0.6 0.1 200) 4%);
+  --card: color-mix(in oklab, oklch(0.205 0 0) 90%, oklch(0.6 0.1 200) 10%);
 }
