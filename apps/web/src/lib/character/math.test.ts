@@ -6,7 +6,6 @@ import {
   crossfadeProgress,
   dwellRemaining,
   EMOTION_ANIMATION,
-  EMOTION_CUES,
   frameAt,
   isAnimation,
   isPose,
@@ -18,15 +17,25 @@ import {
 const NAMES = Object.keys(ANIMATIONS) as AnimationName[];
 
 describe('frame strips', () => {
-  it('maps every emotion to a strip and every cue to a one-shot', () => {
+  it('gives every mood the strip that fits it', () => {
     expect(Object.keys(EMOTION_ANIMATION).sort()).toEqual(['happy', 'idle', 'shy', 'sleepy']);
     for (const name of Object.values(EMOTION_ANIMATION)) expect(ANIMATIONS[name]).toBeDefined();
-    expect(EMOTION_CUES.happy).toBe('jumping');
-    expect(EMOTION_CUES.shy).toBe('review');
+    expect(EMOTION_ANIMATION).toEqual({
+      idle: 'idle',
+      happy: 'jumping',
+      shy: 'review',
+      sleepy: 'failed',
+    });
     expect(ANIMATIONS.idle.loop).toBe(true);
     expect(ANIMATIONS.waiting.loop).toBe(true);
+    expect(ANIMATIONS.failed.loop).toBe(true);
     expect(ANIMATIONS.jumping.loop).toBe(false);
-    expect(ANIMATIONS.failed.loop).toBe(false);
+    expect(ANIMATIONS.review.loop).toBe(false);
+  });
+
+  it('holds happy and shy on the last cell, so the still is the held pose', () => {
+    expect(STILL_FRAME.jumping).toBe(ANIMATIONS.jumping.durations.length - 1);
+    expect(STILL_FRAME.review).toBe(ANIMATIONS.review.durations.length - 1);
   });
 
   it('points every strip at a character file and gives every frame a duration', () => {

@@ -20,9 +20,11 @@ the collapsed stage, a jump, a shy beat, the waiting loop and the final frame li
 
 - **A character that reacts.** Six frame sequences (idle, waving, jumping,
   failed, waiting, review) play on a Canvas 2D canvas: she blinks and swings her
-  tail at rest, waves when the stage opens or she is patted, jumps when happy,
-  looks down when shy, and waits while a reply is in flight. A fallback reply
-  gets a failed take. Reduced motion holds one frame. She is also a button: a
+  tail while calm, waves when the stage opens or she is patted, jumps once and
+  keeps the smile while happy, looks down while shy, dozes while sleepy, and
+  waits while a reply is in flight. The mood owns the pose until it changes.
+  A fallback reply gets a failed take. Reduced motion holds one frame. She is
+  also a button: a
   tap is a head pat, a held press or Enter says a line, and each reply drops its
   first sentence onto the stage (switchable in 外观).
 - **Chat that works before setup.** Demo replies stream from local templates,

@@ -132,9 +132,11 @@ change states its migration at the top of the release it ships in.
 
 - The character is now six frame sequences instead of four still poses: idle
   loops 1.1 s with a blink and a tail swing, entering or a head pat waves, happy
-  jumps, shy looks down, a sleepy or in-flight reply waits, and a fallback reply
-  gets a failed take. State changes crossfade for 180 ms and keep the two-second
-  dwell; reduced motion and the static renderer hold one frame. The four
+  jumps once and keeps the smile, shy looks down, sleepy dozes, a reply in flight
+  waits, and a fallback reply gets a failed take. The mood owns the pose until it
+  changes, and a reply in flight outranks it. State changes crossfade for 180 ms
+  and keep the two-second dwell; reduced motion and the static renderer hold one
+  frame. The four
   512×512 poses are removed. The frames are cropped from
   `codex-pet-DeepSeek-girl` by xpy12367, a repository without a license; the
   earlier `dsh-whale-musume` credit stays for the character lineage. The project

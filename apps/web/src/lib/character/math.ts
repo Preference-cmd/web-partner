@@ -19,9 +19,10 @@ export const CROSSFADE_MS = 180;
 export const MIN_DWELL_MS = 2000;
 
 /**
- * Durations follow the author's preview GIFs. The idle loop is the published
- * six-cell loop; review keeps only its first four cells, the hand-to-chest
- * gesture that reads as shy, and holds the last one.
+ * Durations follow the author's preview GIFs. `idle`, `waiting` and the doze
+ * loop, so a mood that rests on one keeps breathing; the rest are one-shots
+ * that hold their last cell, which is how a mood keeps its face after the
+ * gesture ends.
  */
 export const ANIMATIONS: Readonly<Record<AnimationName, Animation>> = {
   idle: {
@@ -42,7 +43,7 @@ export const ANIMATIONS: Readonly<Record<AnimationName, Animation>> = {
   failed: {
     file: '/character/failed.webp',
     durations: [140, 140, 140, 140, 140, 140, 140, 240],
-    loop: false,
+    loop: true,
   },
   waiting: {
     file: '/character/waiting.webp',
@@ -56,26 +57,25 @@ export const ANIMATIONS: Readonly<Record<AnimationName, Animation>> = {
   },
 };
 
-/** The emotion decides where the figure rests between actions. */
+/**
+ * The emotion decides the pose the figure holds. The jump and the review's
+ * downward glance read as happy and shy once they stop on their last cell,
+ * and the doze is the closest the sheet has to sleepy; a reply in flight
+ * outranks all of them with the waiting loop.
+ */
 export const EMOTION_ANIMATION: Readonly<Record<Emotion, AnimationName>> = {
   idle: 'idle',
   happy: 'jumping',
   shy: 'review',
-  sleepy: 'waiting',
+  sleepy: 'failed',
 };
 
-/** Happy and shy act the mood once, then settle back to the idle loop. */
-export const EMOTION_CUES: Readonly<Partial<Record<Emotion, AnimationName>>> = {
-  happy: 'jumping',
-  shy: 'review',
-};
-
-/** The still shown when motion is off; an action frame, not its first cell. */
+/** The still shown when motion is off: a cell that reads as its mood. */
 export const STILL_FRAME: Readonly<Record<AnimationName, number>> = {
   idle: 0,
   waving: 0,
-  jumping: 2,
-  failed: 0,
+  jumping: 4,
+  failed: 5,
   waiting: 0,
   review: 3,
 };

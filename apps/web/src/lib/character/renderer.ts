@@ -6,7 +6,6 @@ import {
   crossfadeProgress,
   dwellRemaining,
   EMOTION_ANIMATION,
-  EMOTION_CUES,
   FRAME_HEIGHT,
   FRAME_WIDTH,
   frameAt,
@@ -34,8 +33,6 @@ export interface CharacterOptions {
 interface Playing {
   name: AnimationName;
   startedAt: number;
-  /** A reaction from the stage or the chat outranks a mood's one-shot. */
-  manual?: boolean;
 }
 
 function prefersReducedMotion(): boolean {
@@ -65,9 +62,11 @@ function loadFrames(name: AnimationName): Promise<HTMLImageElement> {
 }
 
 /**
- * Plays the six frame strips: an idle loop, one-shot greetings and reactions,
- * and the conversation's waiting state. Reduced motion and the static renderer
- * hold one still. Missing images or a lost 2D context leave the stage to its
+ * Plays the six frame strips: the mood's strip holds the pose, with loops for
+ * idle, waiting and the doze and one-shots that stop on their last cell for
+ * the rest. Greetings and reactions interrupt for one pass, and a reply in
+ * flight shows the waiting loop. Reduced motion and the static renderer hold
+ * one still. Missing images or a lost 2D context leave the stage to its
  * fallback instead of throwing.
  */
 export function mountCharacter(
@@ -108,15 +107,13 @@ export function mountCharacter(
     return reduced || kind === 'static';
   }
 
-  /** Where the figure rests once no one-shot is playing. */
+  /** The pose the figure holds: a reply in flight waits, otherwise the mood. */
   function restingName(): AnimationName {
-    if (frozen()) return waiting ? 'waiting' : EMOTION_ANIMATION[emotion];
-    if (waiting || emotion === 'sleepy') return 'waiting';
-    return 'idle';
+    if (waiting) return 'waiting';
+    return EMOTION_ANIMATION[emotion];
   }
 
   function visibleName(): AnimationName {
-    if (frozen()) return restingName();
     return cue?.name ?? restingName();
   }
 
@@ -238,7 +235,7 @@ export function mountCharacter(
 
   function playCue(name: AnimationName, now = performance.now()): void {
     if (disposed || frozen()) return;
-    cue = { name, startedAt: now, manual: true };
+    cue = { name, startedAt: now };
     present(now, true);
   }
 
@@ -246,15 +243,9 @@ export function mountCharacter(
     if (next === emotion) return;
     emotion = next;
     poseChangedAt = now;
-    const cueName = EMOTION_CUES[next];
-    let restart = false;
-    if (!frozen() && cueName && !cue?.manual) {
-      cue = { name: cueName, startedAt: now };
-      restart = true;
-    } else if (!cue?.manual) {
-      cue = null;
-    }
-    present(now, restart);
+    // A greeting or a reaction owns the stage until it ends; finishCue then
+    // hands the stage to the new mood.
+    if (!cue) present(now, true);
   }
 
   // A mood holds for two seconds so quick turns do not flash between poses.
@@ -343,7 +334,7 @@ export function mountCharacter(
       ready = true;
       host.dataset.characterState = 'ready';
       const now = performance.now();
-      if (!frozen()) cue = { name: 'waving', startedAt: now, manual: false };
+      if (!frozen()) cue = { name: 'waving', startedAt: now };
       present(now, true);
       start();
     })
