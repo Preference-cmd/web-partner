@@ -130,7 +130,12 @@ change states its migration at the top of the release it ships in.
   control, the active session, the focus ring, the idle mood dot and the live
   mode chip. The four stage lights also tint the panel and sidebar surfaces, so
   switching a light changes the whole screen instead of the backdrop alone.
-  Muted text stays above 4.5:1 on the panel in every light (6.68–6.87:1).
+  Muted text stays above 4.5:1 on the panel in every light (6.27–6.75:1).
+- The mode badge lives only in the sidebar now; the panel header keeps the
+  character name and mood. In demo mode the composer offers one 接入模型 entry
+  instead of an unused model menu. On phones the composer's bottom row holds
+  only the attachment and send controls, with model and effort in a row above
+  the input; quick actions fold to two plus 更多, keeping all three wordings.
 - Copy that described unfinished plans is gone: the login page states that the
   demo has no account system, and the settings page no longer shows a lighting
   row that only pointed at the debug drawer.

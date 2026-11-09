@@ -43,7 +43,9 @@ the keys stay in the browser.
   its own light switch.
 - **Details that matter.** `Cmd/Ctrl+K` or `/` focuses the composer,
   destructive actions ask in dialogs, the layout becomes sheets on phones, and
-  every control a thumb needs is at least 44×44 there.
+  every control a thumb needs is at least 44×44 there. On phones the composer's
+  bottom row keeps only the attachment and send controls; model and effort move
+  to a row above the input, and the quick actions fold behind 更多.
 
 ## How it works
 

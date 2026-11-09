@@ -51,7 +51,6 @@ import {
   AttachmentMedia,
   AttachmentTitle,
 } from '@/components/ui/attachment';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -231,6 +230,7 @@ export default function ChatPanel() {
   const [draft, setDraft] = useState('');
   const [collapsed, setCollapsed] = useState(false);
   const [mode, setMode] = useState<ChatMode>('demo');
+  const [showAllQuick, setShowAllQuick] = useState(false);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [manualHeight, setManualHeight] = useState<number | null>(null);
   const [attachments, setAttachments] = useState<MessageAttachment[]>([]);
@@ -710,9 +710,6 @@ export default function ChatPanel() {
           <span className={cn('size-2 rounded-full', EMOTION_DOT[emotion])} aria-hidden />
           <span className="text-sm font-medium">小鲸</span>
           <span className="text-xs text-muted-foreground">{EMOTION_LABEL[emotion]}</span>
-          <Badge variant={mode === 'live' ? 'default' : 'secondary'} className="text-xs">
-            {mode === 'live' ? '实时' : '演示'}
-          </Badge>
         </div>
         <div className="flex items-center gap-1">
           <AlertDialog>
@@ -780,16 +777,23 @@ export default function ChatPanel() {
       {/* Folded or not, the quick actions stay one tap away. */}
       <div className="px-3 pb-1">
         <Suggestions>
-          {QUICK_ACTIONS.map(([label, text]) => (
-            <Suggestion
-              key={label}
-              suggestion={text}
-              onClick={(value) => controller.quickReply(value)}
-              disabled={streaming}
-            >
-              {label}
+          {(narrow && !showAllQuick ? QUICK_ACTIONS.slice(0, 2) : QUICK_ACTIONS).map(
+            ([label, text]) => (
+              <Suggestion
+                key={label}
+                suggestion={text}
+                onClick={(value) => controller.quickReply(value)}
+                disabled={streaming}
+              >
+                {label}
+              </Suggestion>
+            ),
+          )}
+          {narrow && !showAllQuick ? (
+            <Suggestion suggestion="" onClick={() => setShowAllQuick(true)} disabled={streaming}>
+              更多
             </Suggestion>
-          ))}
+          ) : null}
         </Suggestions>
       </div>
 
@@ -803,6 +807,34 @@ export default function ChatPanel() {
           setAttachmentError(null);
         }}
       >
+        {narrow || mode === 'demo' ? (
+          <div className="flex items-center px-1 pt-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <InputGroupButton
+                  size="sm"
+                  variant="ghost"
+                  className="rounded-full"
+                  aria-label={mode === 'demo' ? '接入模型' : '模型与努力'}
+                >
+                  {mode === 'demo' ? '接入模型' : '模型与努力'}
+                  <ChevronDownIcon className="size-3.5 opacity-60" />
+                </InputGroupButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                <DropdownMenuLabel>模型</DropdownMenuLabel>
+                {modelItems}
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>努力</DropdownMenuLabel>
+                {effortItems}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => requestSettings('providers')}>
+                  管理供应商…
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        ) : null}
         {attachments.length > 0 ? (
           <PromptInputHeader>
             {attachments.map((file) => (
@@ -865,32 +897,7 @@ export default function ChatPanel() {
             />
           </PromptInputTools>
           <div className="ml-auto flex min-w-0 items-center gap-1">
-            {narrow ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <InputGroupButton
-                    size="sm"
-                    variant="ghost"
-                    className="max-w-32 rounded-full"
-                    aria-label={`模型与努力：${modelTag}，${effortLabel}`}
-                  >
-                    <span className="truncate">{modelTag}</span>
-                    <ChevronDownIcon className="size-3.5 opacity-60" />
-                  </InputGroupButton>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>模型</DropdownMenuLabel>
-                  {modelItems}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel>努力</DropdownMenuLabel>
-                  {effortItems}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={() => requestSettings('providers')}>
-                    管理供应商…
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
+            {!narrow && mode === 'live' ? (
               <>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -932,7 +939,7 @@ export default function ChatPanel() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </>
-            )}
+            ) : null}
             <PromptInputSubmit
               className="max-md:size-11"
               status={streaming ? 'streaming' : 'ready'}
