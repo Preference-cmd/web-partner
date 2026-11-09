@@ -98,6 +98,29 @@ async function probeUpstream(body: ChatBody, signal: AbortSignal): Promise<Respo
   });
 }
 
+/**
+ * The SDK's first-chunk timer starts after the endpoint's response headers
+ * arrive, so an endpoint that accepts the connection and never answers would
+ * hold the reply open forever. Abort that wait at the connect deadline; once
+ * headers land the SDK's own chunk timeout takes over.
+ */
+function headersTimeout(signal: AbortSignal): typeof fetch {
+  return async (input, init) => {
+    const controller = new AbortController();
+    const timer = setTimeout(
+      () => controller.abort(new DOMException('connect timeout', 'TimeoutError')),
+      CONNECT_TIMEOUT_MS,
+    );
+    const signals = [signal, controller.signal];
+    if (init?.signal) signals.push(init.signal);
+    try {
+      return await fetch(input, { ...init, signal: AbortSignal.any(signals) });
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+}
+
 function isIpLiteral(hostname: string): boolean {
   if (hostname.startsWith('[') || hostname.includes(':')) return true;
   return /^\d{1,3}(?:\.\d{1,3}){3}$/u.test(hostname);
@@ -314,6 +337,7 @@ export async function handleChat(request: Request): Promise<Response> {
     name: 'partner-proxy',
     baseURL: body.endpoint,
     apiKey: body.apiKey,
+    fetch: headersTimeout(request.signal),
   });
 
   const result = streamText({

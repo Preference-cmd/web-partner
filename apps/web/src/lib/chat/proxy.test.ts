@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MAX_BODY_BYTES, OUTPUT_DEFAULT } from './llm';
-import { handleChat } from './proxy';
+import { CONNECT_TIMEOUT_MS, handleChat } from './proxy';
 
 const encoder = new TextEncoder();
 
@@ -40,6 +40,7 @@ const baseBody = {
 };
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -72,6 +73,23 @@ describe('chat proxy', () => {
       { role: 'system', content: '你是一只鲸鱼。' },
       { role: 'user', content: '你好' },
     ]);
+  });
+
+  it('gives up at the connect deadline when the endpoint never answers', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn(
+      (_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(init.signal?.reason));
+        }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await handleChat(makeRequest(baseBody));
+    const text = response.text();
+    await vi.advanceTimersByTimeAsync(CONNECT_TIMEOUT_MS + 50);
+
+    expect(await text).toBe('');
   });
 
   it('forwards the requested output budget and clamps it', async () => {
