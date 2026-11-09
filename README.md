@@ -14,7 +14,7 @@ the keys stay in the browser.
 ![The character above the chat panel](docs/screenshot-chat.jpg)
 
 [Watch the character demo](docs/demo-character.mp4) (27 s, no audio): a head pat,
-the collapsed stage, a jump, a shy beat, the waiting loop and the final frame list.
+the collapsed stage, a jump, a shy beat, a doze and the final frame list.
 
 ## Features
 
