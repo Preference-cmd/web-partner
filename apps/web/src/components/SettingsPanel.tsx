@@ -195,7 +195,9 @@ function Row({
       <div className="flex min-w-0 flex-col gap-1">
         {label}
         {description ? (
-          <p className="max-w-[58ch] text-sm leading-normal text-muted-foreground">{description}</p>
+          <p className="max-w-[58ch] text-xs leading-relaxed text-muted-foreground">
+            {description}
+          </p>
         ) : null}
       </div>
       {children ? (
@@ -279,8 +281,10 @@ function ProviderCard({
   return (
     <div
       className={cn(
-        'rounded-xl border bg-card p-3 shadow-sm transition-colors',
-        active ? 'border-ring/60' : 'border-border',
+        'rounded-xl border p-3 shadow-sm transition-colors',
+        active
+          ? 'border-transparent bg-brand/15 ring-1 ring-inset ring-brand/40'
+          : 'border-border bg-card',
       )}
     >
       <div className="flex items-start gap-2">
@@ -293,7 +297,7 @@ function ProviderCard({
           <span className="flex min-w-0 items-center gap-2">
             <span className="truncate text-sm font-medium">{provider.name}</span>
             {active ? <Badge className="shrink-0">当前</Badge> : null}
-            <Badge variant="outline" className="shrink-0 text-xs font-normal">
+            <Badge variant="secondary" className="shrink-0 text-xs font-normal">
               {PROTOCOL_LABEL[provider.protocol]}
             </Badge>
           </span>
@@ -339,10 +343,10 @@ function ProviderCard({
                 aria-pressed={chosen}
                 onClick={() => onSelectModel(provider.id, model.model)}
                 className={cn(
-                  'max-md:min-h-11 rounded-full border px-2.5 py-1 text-xs transition-colors',
+                  'max-md:min-h-11 rounded-full px-2.5 py-1 text-xs transition-colors',
                   chosen
-                    ? 'border-foreground/20 bg-secondary text-secondary-foreground'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                    ? 'bg-brand/15 text-foreground ring-1 ring-inset ring-brand/40'
+                    : 'bg-foreground/[0.06] text-muted-foreground hover:bg-accent',
                 )}
               >
                 {modelLabel(model)}
@@ -588,7 +592,7 @@ export default function SettingsPanel() {
                     className={cn(
                       'flex items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors',
                       current
-                        ? 'bg-secondary text-secondary-foreground'
+                        ? 'bg-brand/15 text-foreground ring-1 ring-inset ring-brand/40'
                         : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                     )}
                   >
@@ -600,7 +604,7 @@ export default function SettingsPanel() {
             </div>
           ))}
           <p className="mt-auto px-3 pt-4 text-xs leading-snug text-muted-foreground">
-            改完即保存，按 Esc 关闭。
+            按 Esc 关闭
           </p>
         </nav>
 
@@ -616,10 +620,10 @@ export default function SettingsPanel() {
                 aria-current={id === section ? 'true' : undefined}
                 onClick={() => go(id)}
                 className={cn(
-                  'min-h-11 shrink-0 rounded-full border px-3 text-xs transition-colors',
+                  'min-h-11 shrink-0 rounded-full px-3 text-xs transition-colors',
                   id === section
-                    ? 'border-foreground/20 bg-secondary text-secondary-foreground'
-                    : 'text-muted-foreground',
+                    ? 'bg-brand/15 text-foreground ring-1 ring-inset ring-brand/40'
+                    : 'bg-foreground/[0.06] text-muted-foreground',
                 )}
               >
                 {label}
@@ -652,9 +656,8 @@ export default function SettingsPanel() {
                   <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed px-4 py-10 text-center">
                     <BoxesIcon className="size-6 text-muted-foreground" aria-hidden="true" />
                     <p className="text-sm font-medium">还没有供应商</p>
-                    <p className="max-w-[40ch] text-sm leading-normal text-muted-foreground">
-                      供应商就是你要调用的那个端点：base URL、API
-                      key、模型名。添加之后，对话才会离开这台浏览器。
+                    <p className="max-w-[40ch] text-xs leading-relaxed text-muted-foreground">
+                      添加之后，新消息才会离开这台浏览器。
                     </p>
                     <Button className="mt-1 max-md:h-11" onClick={() => openEditor(null)}>
                       <PlusIcon data-icon="inline-start" />
@@ -688,7 +691,7 @@ export default function SettingsPanel() {
                   <span
                     className={cn(
                       'size-2 shrink-0 rounded-full',
-                      live ? 'bg-emerald-400' : 'bg-muted-foreground',
+                      live ? 'bg-brand-hi' : 'bg-muted-foreground',
                     )}
                   />
                   <span>{statusLine}</span>
@@ -708,7 +711,7 @@ export default function SettingsPanel() {
                 >
                   <ToggleGroup
                     type="single"
-                    variant="outline"
+                    className="segmented"
                     value={modeChoice(settings)}
                     aria-label="回复来源"
                     onValueChange={(value) => {
@@ -777,10 +780,9 @@ export default function SettingsPanel() {
                 >
                   <ToggleGroup
                     type="single"
-                    variant="outline"
                     value={effortNow}
                     aria-label="思考强度"
-                    className="flex-wrap justify-start"
+                    className="segmented flex-wrap justify-start"
                     disabled={!provider}
                     onValueChange={(value) => {
                       if (!value) return;
@@ -846,10 +848,9 @@ export default function SettingsPanel() {
                 >
                   <ToggleGroup
                     type="single"
-                    variant="outline"
                     value={light}
                     aria-label="灯光主题"
-                    className="grid grid-cols-2 gap-1"
+                    className="segmented grid grid-cols-2 gap-1"
                     onValueChange={(value) => {
                       const next = LIGHT_THEMES.find((item) => item.id === value);
                       if (!next) return;
@@ -869,7 +870,7 @@ export default function SettingsPanel() {
                 <Row title="动效" description="关掉舞台浮尘、打字点与面板过渡的动画。">
                   <ToggleGroup
                     type="single"
-                    variant="outline"
+                    className="segmented"
                     value={settings.motion}
                     aria-label="动效"
                     onValueChange={(value) => {
@@ -925,7 +926,7 @@ export default function SettingsPanel() {
                   description="每个供应商的 key 一起清除；实时模式会退回演示，直到重新填入。"
                 >
                   <Button
-                    variant="outline"
+                    variant="secondary"
                     className="max-md:h-11"
                     disabled={!apiKey}
                     onClick={removeKeys}
@@ -940,7 +941,7 @@ export default function SettingsPanel() {
                 >
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="outline" className="max-md:h-11">
+                      <Button variant="secondary" className="max-md:h-11">
                         恢复默认设置
                       </Button>
                     </AlertDialogTrigger>

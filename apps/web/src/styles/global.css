@@ -368,3 +368,28 @@ html[data-light="deep"] {
 html[data-light="dawn"] {
   --card: color-mix(in oklab, oklch(0.205 0 0) 90%, oklch(0.6 0.1 200) 10%);
 }
+
+/* Segmented controls: one soft track, a brand-tinted active segment.
+   Unlayered so it wins over the outline utilities without taking the focus ring. */
+.segmented {
+  padding: 2px;
+  border-radius: calc(var(--radius) - 2px);
+  background: color-mix(in oklab, var(--foreground) 6%, transparent);
+}
+
+.segmented [data-slot='toggle-group-item'] {
+  border-radius: calc(var(--radius) - 4px);
+  color: var(--muted-foreground);
+}
+
+.segmented [data-slot='toggle-group-item']:hover {
+  background: color-mix(in oklab, var(--foreground) 10%, transparent);
+  color: var(--foreground);
+}
+
+.segmented [data-slot='toggle-group-item'][data-state='on'] {
+  background: color-mix(in oklab, var(--brand) 18%, transparent);
+  color: var(--foreground);
+  outline: 1px solid color-mix(in oklab, var(--brand) 45%, transparent);
+  outline-offset: -1px;
+}

@@ -195,9 +195,7 @@ export default function ProviderDialog({
           <DialogTitle className="text-base font-semibold">
             {provider ? '编辑供应商' : '添加供应商'}
           </DialogTitle>
-          <DialogDescription>
-            一个供应商是一个 base URL、一把 key 和一组模型，都只存在这台浏览器。
-          </DialogDescription>
+          <DialogDescription>都只存在这台浏览器，不会上传。</DialogDescription>
         </header>
 
         <div className="grid min-h-0 flex-1 gap-x-5 gap-y-4 overflow-y-auto px-4 py-4 sm:grid-cols-2 sm:px-5">
@@ -250,7 +248,7 @@ export default function ProviderDialog({
             <span className="text-sm font-medium">连接方式</span>
             <ToggleGroup
               type="single"
-              variant="outline"
+              className="segmented"
               size="sm"
               value={direct ? 'direct' : 'proxy'}
               aria-label="连接方式"
@@ -342,7 +340,7 @@ export default function ProviderDialog({
               disabled={models.length >= PROVIDER_MODEL_LIMIT}
               size="sm"
               type="button"
-              variant="outline"
+              variant="secondary"
               onClick={() => setModels((current) => [...current, { id: newModelId(), model: '' }])}
             >
               <PlusIcon data-icon="inline-start" />
@@ -357,11 +355,10 @@ export default function ProviderDialog({
             <span className="text-sm font-medium">启用的思考强度</span>
             <ToggleGroup
               type="multiple"
-              variant="outline"
               size="sm"
               value={efforts}
               aria-label="启用的思考强度"
-              className="flex-wrap justify-start"
+              className="segmented flex-wrap justify-start"
               onValueChange={(value) => setEfforts(value as ReasoningEffort[])}
             >
               {EFFORT_LEVELS.map((effort) => (

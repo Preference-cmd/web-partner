@@ -126,6 +126,12 @@ change states its migration at the top of the release it ships in.
 
 ### Changed
 
+- The settings dialog matches the rest of the UI now: the section nav, live
+  status dot, active provider and selected model use the brand blue instead of
+  neutral grey or emerald; segmented controls and secondary actions drop their
+  outlines for tinted fills; row descriptions step down to 12px. The dialog
+  header, sidebar footer and empty state no longer repeat the same explanation
+  of what a provider is.
 - The visual baseline is the character's blue now: `--brand` fills the send
   control, the active session, the focus ring, the idle mood dot and the live
   mode chip. The four stage lights also tint the panel and sidebar surfaces, so

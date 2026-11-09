@@ -47,7 +47,7 @@ export default function SettingsDialog() {
         <header className="flex flex-col gap-1 border-b px-4 py-3 pr-14 sm:px-6">
           <DialogTitle className="text-base font-semibold">设置</DialogTitle>
           <DialogDescription>
-            供应商提供端点、模型与 key；改完即保存。API key 只留在当前标签页，关掉浏览器就没了。
+            改完即保存。API key 只留在当前标签页，关掉浏览器就没了。
           </DialogDescription>
         </header>
         <div className="min-h-0 flex-1">
