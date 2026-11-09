@@ -114,6 +114,10 @@ change states its migration at the top of the release it ships in.
 
 ### Fixed
 
+- An endpoint that accepts the connection and never answers no longer leaves
+  the reply streaming forever: the proxy gives up after eight seconds and the
+  turn falls back to a template reply marked 模板回复, like any other empty
+  stream.
 - The stage light sits under the character instead of 210 px to her left: the
   aura's breathing keyframe no longer repeats the centring transform Tailwind
   already applies.
