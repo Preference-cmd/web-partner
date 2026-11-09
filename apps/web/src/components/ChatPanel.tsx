@@ -132,7 +132,7 @@ function clampPanelHeight(value: number): number {
 }
 
 const EMOTION_DOT: Record<Emotion, string> = {
-  idle: 'bg-muted-foreground',
+  idle: 'bg-brand-hi',
   happy: 'bg-amber-400',
   shy: 'bg-pink-400',
   sleepy: 'bg-slate-400',

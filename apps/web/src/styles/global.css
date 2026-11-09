@@ -320,3 +320,51 @@ html[data-motion="reduced"] *::after {
   animation: none !important;
   transition: none !important;
 }
+
+/* Brand: the figure's blue, used only where an action or a state needs an identity.
+   --brand is the button fill; --brand-hi carries the 3:1 non-text contrast. */
+:root {
+  --brand: #185fa5;
+  --brand-hi: #5b9bf0;
+  --brand-foreground: #ffffff;
+  --ring: #5b9bf0;
+}
+
+@theme inline {
+  --color-brand: var(--brand);
+  --color-brand-hi: var(--brand-hi);
+  --color-brand-foreground: var(--brand-foreground);
+}
+
+/* The four stage lights tint the UI surfaces too, so the whole screen changes together. */
+@property --card {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.205 0 0);
+}
+
+html {
+  transition:
+    --stage-bg-1 600ms ease,
+    --stage-bg-2 600ms ease,
+    --stage-bg-3 600ms ease,
+    --stage-vignette 600ms ease,
+    --stage-dust 600ms ease,
+    --card 600ms ease;
+}
+
+html[data-light="night"] {
+  --card: color-mix(in oklab, oklch(0.205 0 0) 97%, oklch(0.55 0.12 255) 3%);
+}
+
+html[data-light="dusk"] {
+  --card: color-mix(in oklab, oklch(0.205 0 0) 96%, oklch(0.6 0.12 55) 4%);
+}
+
+html[data-light="deep"] {
+  --card: color-mix(in oklab, oklch(0.205 0 0) 98%, oklch(0.4 0.03 265) 2%);
+}
+
+html[data-light="dawn"] {
+  --card: color-mix(in oklab, oklch(0.205 0 0) 96%, oklch(0.6 0.1 200) 4%);
+}

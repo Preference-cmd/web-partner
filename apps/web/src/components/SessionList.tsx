@@ -89,7 +89,7 @@ export default function SessionList({ controller, onPick }: SessionListProps) {
               key={session.id}
               className={cn(
                 'group flex items-center gap-0.5 rounded-md max-md:min-h-12',
-                active ? 'bg-secondary' : 'hover:bg-accent/50',
+                active ? 'bg-brand/15 ring-1 ring-inset ring-brand/40' : 'hover:bg-accent/50',
               )}
             >
               {editing === session.id ? (

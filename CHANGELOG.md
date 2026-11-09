@@ -126,6 +126,11 @@ change states its migration at the top of the release it ships in.
 
 ### Changed
 
+- The visual baseline is the character's blue now: `--brand` fills the send
+  control, the active session, the focus ring, the idle mood dot and the live
+  mode chip. The four stage lights also tint the panel and sidebar surfaces, so
+  switching a light changes the whole screen instead of the backdrop alone.
+  Muted text stays above 4.5:1 on the panel in every light (6.68–6.87:1).
 - Copy that described unfinished plans is gone: the login page states that the
   demo has no account system, and the settings page no longer shows a lighting
   row that only pointed at the debug drawer.

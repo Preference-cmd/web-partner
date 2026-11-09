@@ -113,11 +113,19 @@ function SidebarBody({
       <SessionList controller={chat} onPick={onNewChat} />
 
       <div className="mt-auto flex flex-col gap-3">
-        <Badge variant="secondary" className="w-fit gap-1.5" data-side-mode data-mode={mode}>
+        <Badge
+          variant="secondary"
+          className={cn(
+            'w-fit gap-1.5',
+            mode === 'live' && 'bg-brand/15 text-brand-foreground ring-1 ring-inset ring-brand/40',
+          )}
+          data-side-mode
+          data-mode={mode}
+        >
           <span
             className={cn(
               'size-1.5 rounded-full',
-              mode === 'live' ? 'bg-emerald-400' : 'bg-muted-foreground',
+              mode === 'live' ? 'bg-brand-hi' : 'bg-muted-foreground',
             )}
           />
           <span className="mode-text">{mode === 'live' ? '实时模式' : '演示模式'}</span>
