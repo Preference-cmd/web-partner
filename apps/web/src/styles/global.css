@@ -5,7 +5,8 @@
 
 /* One theme: shadcn's neutral dark tokens. The app has no light mode. */
 :root {
-  --radius: 0.625rem;
+  /* Radius scale: 8 / 10 / 12 / 16 px; chips stay full. */
+  --radius: 0.75rem;
 
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);

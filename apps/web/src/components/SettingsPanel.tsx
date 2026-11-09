@@ -288,12 +288,12 @@ function ProviderCard({
           type="button"
           aria-pressed={active}
           onClick={() => onSelectProvider(provider)}
-          className="flex min-w-0 flex-1 flex-col gap-1 rounded-lg py-0.5 text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          className="flex min-w-0 flex-1 flex-col gap-1 rounded-lg py-0.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <span className="flex min-w-0 items-center gap-2">
             <span className="truncate text-sm font-medium">{provider.name}</span>
             {active ? <Badge className="shrink-0">当前</Badge> : null}
-            <Badge variant="outline" className="shrink-0 text-[0.7rem] font-normal">
+            <Badge variant="outline" className="shrink-0 text-xs font-normal">
               {PROTOCOL_LABEL[provider.protocol]}
             </Badge>
           </span>

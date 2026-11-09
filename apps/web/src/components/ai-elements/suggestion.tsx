@@ -21,7 +21,7 @@ export const Suggestion = ({
   suggestion,
   onClick,
   className,
-  variant = 'outline',
+  variant = 'ghost',
   size = 'sm',
   children,
   ...props
@@ -32,7 +32,10 @@ export const Suggestion = ({
 
   return (
     <Button
-      className={cn('cursor-pointer rounded-full px-4 max-md:h-11', className)}
+      className={cn(
+        'cursor-pointer rounded-full bg-accent/50 px-4 hover:bg-accent/80 max-md:h-11',
+        className,
+      )}
       onClick={handleClick}
       size={size}
       type="button"

@@ -79,7 +79,7 @@ export default function SessionList({ controller, onPick }: SessionListProps) {
     <>
       <ul
         ref={listRef}
-        className="flex max-h-56 flex-col gap-0.5 overflow-y-auto"
+        className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto"
         aria-label="本机对话"
       >
         {sessions.map((session) => {
@@ -135,12 +135,12 @@ export default function SessionList({ controller, onPick }: SessionListProps) {
                     type="button"
                     onClick={() => pick(session)}
                     aria-current={active ? 'page' : undefined}
-                    className="flex min-w-0 flex-1 flex-col items-start gap-0.5 rounded-md px-2 py-1.5 text-left"
+                    className="flex min-h-11 min-w-0 flex-1 flex-col items-start gap-0.5 rounded-md px-2 py-1.5 text-left"
                   >
                     <span className="w-full truncate text-xs text-foreground/90">
                       {session.title}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       {formatSessionTime(session.updatedAt)}
                     </span>
                   </button>

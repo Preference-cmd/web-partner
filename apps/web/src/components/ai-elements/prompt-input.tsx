@@ -113,7 +113,7 @@ export const PromptInputAttachButton = ({ className, ...props }: PromptInputAtta
   <InputGroupButton
     aria-label="添加附件"
     size="icon-sm"
-    variant="outline"
+    variant="ghost"
     className={cn('rounded-full', className)}
     {...props}
   >

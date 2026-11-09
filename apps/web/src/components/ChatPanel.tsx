@@ -870,7 +870,7 @@ export default function ChatPanel() {
                 <DropdownMenuTrigger asChild>
                   <InputGroupButton
                     size="sm"
-                    variant="outline"
+                    variant="ghost"
                     className="max-w-32 rounded-full"
                     aria-label={`模型与努力：${modelTag}，${effortLabel}`}
                   >
@@ -896,7 +896,7 @@ export default function ChatPanel() {
                   <DropdownMenuTrigger asChild>
                     <InputGroupButton
                       size="sm"
-                      variant="outline"
+                      variant="ghost"
                       className="max-w-36 rounded-full"
                       aria-label={`模型：${modelTag}`}
                     >
@@ -917,7 +917,7 @@ export default function ChatPanel() {
                   <DropdownMenuTrigger asChild>
                     <InputGroupButton
                       size="sm"
-                      variant="outline"
+                      variant="ghost"
                       className="rounded-full"
                       aria-label={`努力：${effortLabel}`}
                     >

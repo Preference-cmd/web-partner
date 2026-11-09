@@ -430,7 +430,7 @@ export default function DebugPanel() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline justify-between gap-2">
                       <span className="text-muted-foreground">{source.label}</span>
-                      <span className="font-mono text-[10px] text-muted-foreground/60">
+                      <span className="font-mono text-xs text-muted-foreground">
                         {clock(entry.at)}
                       </span>
                     </div>
