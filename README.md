@@ -34,13 +34,15 @@ the keys stay in the browser.
 - **Twenty conversations on this device.** Up to 20 sessions of 100 messages are
   kept in the browser, with switch, inline rename, delete and a one-time
   migration from `partner.chat.v1`.
-- **Settings with a map.** One dialog, a 供应商 list on the left rail and five
-  sections on the right: 供应商, 对话与调用, 外观, 数据, 关于. Adding a provider
-  opens a second dialog — name, protocol, base URL, proxy or direct, key, models
-  and the enabled thinking levels — where 验证并保存 sends one ping before it
-  saves. Appearance owns opacity, the reply echo, the four stage lights and
-  motion. The debug drawer keeps the pose, FPS, log lines and forced moods, plus
-  its own light switch.
+- **Settings with a map.** One dialog, a 供应商 list on the left rail and four
+  sections beside it: 供应商, 对话与调用, 外观, 数据 (the version rows sit at the
+  end of 数据). They switch one at a time — by click, or with arrows, Home and
+  End — with the live/demo status kept above the panel. Adding a provider opens
+  a second dialog — name, protocol, base URL, proxy or direct, key, models and
+  the enabled thinking levels — where 验证并保存 sends one ping before it saves.
+  Appearance owns opacity, the reply echo, the four stage lights and motion. The
+  debug drawer keeps the pose, FPS, log lines and forced moods, plus its own
+  light switch.
 - **Details that matter.** `Cmd/Ctrl+K` or `/` focuses the composer,
   destructive actions ask in dialogs, the layout becomes sheets on phones, and
   every control a thumb needs is at least 44×44 there. On phones the composer's
@@ -69,8 +71,9 @@ pnpm check       # lint, typecheck, test, build
 
 ## Bring your own model
 
-1. Open the settings dialog: sidebar → 设置, or `/?settings=1`. Sections have
-   their own links, so `/?settings=1#providers` opens on the supplier list.
+1. Open the settings dialog: sidebar → 设置, or `/?settings=1`. Each section has
+   its own link, so `/?settings=1#providers` opens on the supplier list; older
+   links such as `#about` land on the section that owns them now.
 2. 供应商 → 添加供应商: a name (or leave it empty and the host is used), the base
    URL without `/chat/completions`, the key, and one model name per row. Pick
    经代理 to send through the Worker, or 浏览器直连 for a local `http` endpoint or

@@ -37,6 +37,17 @@ export default function SettingsDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent
         className="flex h-[92dvh] w-[min(calc(100vw-1rem),60rem)] max-w-none flex-col gap-0 overflow-hidden p-0 sm:h-[min(760px,90dvh)] sm:w-[min(calc(100vw-2rem),60rem)]"
+        onOpenAutoFocus={(event) => {
+          // The desktop tablist is hidden on phones; focus the visible selected tab
+          // so the focus ring never sits apart from the highlighted section.
+          const tabs = Array.from(
+            document.querySelectorAll<HTMLElement>('[role="tab"][aria-selected="true"]'),
+          );
+          const target = tabs.find((tab) => tab.getClientRects().length > 0);
+          if (!target) return;
+          event.preventDefault();
+          target.focus();
+        }}
         onCloseAutoFocus={(event) => {
           const opener = openerRef.current;
           if (!opener?.isConnected) return;

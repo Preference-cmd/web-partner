@@ -126,6 +126,12 @@ change states its migration at the top of the release it ships in.
 
 ### Changed
 
+- Settings shows one section at a time instead of one long scroll: the side nav
+  and the phone chips are real tabs (arrow keys, Home/End, roving focus), the
+  mode status stays visible above every section, and the about rows live at the
+  end of 数据. Old hashes such as `#model` and `#about` still open the owning
+  section. Opening the dialog focuses the selected tab; Esc still returns focus
+  to the button that opened it.
 - The settings dialog matches the rest of the UI now: the section nav, live
   status dot, active provider and selected model use the brand blue instead of
   neutral grey or emerald; segmented controls and secondary actions drop their

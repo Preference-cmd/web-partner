@@ -3,7 +3,6 @@ import type { LucideIcon } from 'lucide-react';
 import {
   BoxesIcon,
   DatabaseIcon,
-  InfoIcon,
   PaletteIcon,
   PencilIcon,
   PlusIcon,
@@ -84,7 +83,7 @@ const MOTION_OPTIONS: ReadonlyArray<{ id: Motion; label: string }> = [
   { id: 'full', label: '完整' },
 ];
 
-type SectionId = 'providers' | 'usage' | 'appearance' | 'data' | 'about';
+type SectionId = 'providers' | 'usage' | 'appearance' | 'data';
 
 interface SectionSpec {
   id: SectionId;
@@ -98,12 +97,11 @@ const SECTIONS: readonly SectionSpec[] = [
   { id: 'usage', label: '对话与调用', icon: SlidersHorizontalIcon, group: '接入' },
   { id: 'appearance', label: '外观', icon: PaletteIcon, group: '应用' },
   { id: 'data', label: '数据', icon: DatabaseIcon, group: '其他' },
-  { id: 'about', label: '关于', icon: InfoIcon, group: '其他' },
 ];
 
 const GROUPS = ['接入', '应用', '其他'] as const;
 
-/** Links written before the two-pane layout still land on the section that owns them. */
+/** Old links still land on the section that owns them; #about now opens 数据. */
 const HASH_SECTIONS: Record<string, SectionId> = {
   providers: 'providers',
   connection: 'providers',
@@ -113,7 +111,7 @@ const HASH_SECTIONS: Record<string, SectionId> = {
   mode: 'usage',
   appearance: 'appearance',
   data: 'data',
-  about: 'about',
+  about: 'data',
 };
 
 type ModeChoice = (typeof MODE_OPTIONS)[number]['id'];
@@ -138,6 +136,7 @@ function Section({
   description,
   aside,
   card = true,
+  hidden = false,
   children,
 }: {
   id: SectionId;
@@ -145,10 +144,11 @@ function Section({
   description?: React.ReactNode;
   aside?: React.ReactNode;
   card?: boolean;
+  hidden?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <section id={`settings-${id}`} aria-labelledby={`settings-${id}-title`} className="scroll-mt-4">
+    <section id={`settings-${id}`} aria-labelledby={`settings-${id}-title`} hidden={hidden}>
       <div className="mb-3 flex flex-col gap-1">
         <div className="flex min-h-9 items-center justify-between gap-3">
           <h2 id={`settings-${id}-title`} className="text-base font-semibold tracking-tight">
@@ -370,7 +370,12 @@ function ProviderCard({
 export default function SettingsPanel() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [light, setLightState] = useState<LightTheme>('night');
-  const [section, setSection] = useState<SectionId>('providers');
+  // Resolve the hash during the first render, so the selected tab is already
+  // correct when Radix places the dialog's initial focus.
+  const [section, setSection] = useState<SectionId>(() => {
+    if (typeof window === 'undefined') return 'providers';
+    return HASH_SECTIONS[window.location.hash.slice(1)] ?? 'providers';
+  });
   const [editor, setEditor] = useState<{
     open: boolean;
     provider: Provider | null;
@@ -379,30 +384,45 @@ export default function SettingsPanel() {
   const [pendingDelete, setPendingDelete] = useState<Provider | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  /** Scroll the column to one section and keep the hash shareable. */
+  /** Switch the visible panel and keep the hash shareable. */
   const go = useCallback((next: SectionId): void => {
     setSection(next);
-    const node = scrollRef.current?.querySelector<HTMLElement>(`#settings-${next}`);
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    node?.scrollIntoView({ block: 'start', behavior: reduced ? 'auto' : 'smooth' });
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
     window.history.replaceState(window.history.state, '', `#${next}`);
   }, []);
+
+  /** Roving tab order: arrows and Home/End move between the sections. */
+  function onTabKeyDown(event: React.KeyboardEvent<HTMLElement>): void {
+    const keys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
+    if (!keys.includes(event.key)) return;
+    const tabs = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('[role="tab"]'));
+    const index = tabs.findIndex((tab) => tab.getAttribute('aria-selected') === 'true');
+    if (index < 0 || tabs.length === 0) return;
+    let next = index;
+    if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = tabs.length - 1;
+    else {
+      const step = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : -1;
+      next = (index + step + tabs.length) % tabs.length;
+    }
+    event.preventDefault();
+    const id = SECTIONS[next]?.id;
+    if (id) go(id);
+    // React reuses these nodes, so focusing now survives the state update.
+    tabs[next]?.focus();
+  }
+
+  /** A click must move focus with the selection, including programmatic ones. */
+  function pickTab(event: React.MouseEvent<HTMLButtonElement>, id: SectionId): void {
+    go(id);
+    event.currentTarget.focus();
+  }
 
   useEffect(() => {
     const stored = loadSettings(window.localStorage);
     setSettings(stored);
     applyAppearance(document.documentElement, stored);
     setLightState(loadPanelPrefs(window.localStorage).light);
-    const fromHash = HASH_SECTIONS[window.location.hash.slice(1)];
-    if (fromHash) {
-      setSection(fromHash);
-      // The dialog mounts with the hash already in the URL; land on that section.
-      window.requestAnimationFrame(() => {
-        scrollRef.current
-          ?.querySelector<HTMLElement>(`#settings-${fromHash}`)
-          ?.scrollIntoView({ block: 'start', behavior: 'auto' });
-      });
-    }
     // The debug drawer can change the light while this dialog is open.
     const sync = (event: Event): void => {
       const detail = (event as CustomEvent<{ light?: LightTheme }>).detail;
@@ -420,36 +440,6 @@ export default function SettingsPanel() {
       window.removeEventListener('hashchange', onHash);
     };
   }, [go]);
-
-  // The nav follows the scroll, so a long section list still says where you are.
-  useEffect(() => {
-    const root = scrollRef.current;
-    if (!root) return;
-    let frame = 0;
-    const measure = (): void => {
-      frame = 0;
-      const top = root.getBoundingClientRect().top + 32;
-      let current: SectionId = 'providers';
-      for (const { id } of SECTIONS) {
-        const node = root.querySelector<HTMLElement>(`#settings-${id}`);
-        if (node && node.getBoundingClientRect().top <= top) current = id;
-      }
-      // The last section cannot always reach the top; the end of the scroll is it.
-      const atEnd = root.scrollTop + root.clientHeight >= root.scrollHeight - 8;
-      if (atEnd) current = SECTIONS[SECTIONS.length - 1]?.id ?? current;
-      setSection(current);
-    };
-    const onScroll = (): void => {
-      if (frame) return;
-      frame = window.requestAnimationFrame(measure);
-    };
-    root.addEventListener('scroll', onScroll, { passive: true });
-    measure();
-    return () => {
-      root.removeEventListener('scroll', onScroll);
-      if (frame) window.cancelAnimationFrame(frame);
-    };
-  }, []);
 
   function syncChip(next: Settings): void {
     const key = currentApiKey(next, window.sessionStorage, window.localStorage);
@@ -574,21 +564,30 @@ export default function SettingsPanel() {
       {/* Top centre: a save receipt should not sit under the pointer. */}
       <Toaster position="top-center" />
       <div className="grid h-full min-h-0 lg:grid-cols-[13.5rem_minmax(0,1fr)]">
-        <nav
+        <div
           aria-label="设置分区"
+          role="tablist"
+          aria-orientation="vertical"
+          onKeyDown={onTabKeyDown}
           className="hidden min-h-0 flex-col gap-5 overflow-y-auto px-3 py-5 lg:flex"
         >
           {GROUPS.map((group) => (
-            <div key={group} className="flex flex-col gap-1">
-              <p className="px-3 text-xs font-medium text-muted-foreground">{group}</p>
+            <div key={group} role="presentation" className="flex flex-col gap-1">
+              <p role="presentation" className="px-3 text-xs font-medium text-muted-foreground">
+                {group}
+              </p>
               {SECTIONS.filter((item) => item.group === group).map(({ id, label, icon: Icon }) => {
                 const current = id === section;
                 return (
                   <button
                     key={id}
                     type="button"
-                    aria-current={current ? 'true' : undefined}
-                    onClick={() => go(id)}
+                    role="tab"
+                    id={`settings-tab-${id}`}
+                    aria-selected={current}
+                    aria-controls="settings-tabpanel"
+                    tabIndex={current ? 0 : -1}
+                    onClick={(event) => pickTab(event, id)}
                     className={cn(
                       'flex items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-colors',
                       current
@@ -606,35 +605,65 @@ export default function SettingsPanel() {
           <p className="mt-auto px-3 pt-4 text-xs leading-snug text-muted-foreground">
             按 Esc 关闭
           </p>
-        </nav>
+        </div>
 
         <div className="flex min-h-0 flex-col">
-          <nav
+          <div
             aria-label="设置分区"
+            role="tablist"
+            aria-orientation="horizontal"
+            onKeyDown={onTabKeyDown}
             className="flex shrink-0 gap-1 overflow-x-auto border-b px-3 py-2 lg:hidden"
           >
-            {SECTIONS.map(({ id, label }) => (
-              <button
-                key={id}
-                type="button"
-                aria-current={id === section ? 'true' : undefined}
-                onClick={() => go(id)}
-                className={cn(
-                  'min-h-11 shrink-0 rounded-full px-3 text-xs transition-colors',
-                  id === section
-                    ? 'bg-brand/15 text-foreground ring-1 ring-inset ring-brand/40'
-                    : 'bg-foreground/[0.06] text-muted-foreground',
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </nav>
+            {SECTIONS.map(({ id, label }) => {
+              const current = id === section;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  id={`settings-tab-sm-${id}`}
+                  aria-selected={current}
+                  aria-controls="settings-tabpanel"
+                  tabIndex={current ? 0 : -1}
+                  onClick={(event) => pickTab(event, id)}
+                  className={cn(
+                    'min-h-11 shrink-0 rounded-full px-3 text-xs transition-colors',
+                    current
+                      ? 'bg-brand/15 text-foreground ring-1 ring-inset ring-brand/40'
+                      : 'bg-foreground/[0.06] text-muted-foreground',
+                  )}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
 
-          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
-            <div className="mx-auto flex w-full max-w-[42rem] flex-col gap-8 px-4 py-5 sm:px-6">
+          <div
+            className="flex shrink-0 items-center gap-2 border-b px-4 py-2 text-xs sm:px-6"
+            data-mode={status.mode}
+          >
+            <span
+              className={cn(
+                'size-2 shrink-0 rounded-full',
+                live ? 'bg-brand-hi' : 'bg-muted-foreground',
+              )}
+            />
+            <span>{statusLine}</span>
+          </div>
+
+          <div
+            ref={scrollRef}
+            id="settings-tabpanel"
+            role="tabpanel"
+            aria-label="设置内容"
+            className="min-h-0 flex-1 overflow-y-auto"
+          >
+            <div className="mx-auto flex w-full max-w-[42rem] flex-col px-4 py-5 sm:px-6">
               <Section
                 id="providers"
+                hidden={section !== 'providers'}
                 title="供应商"
                 description="一个供应商是一个 base URL、一把 key 和一组模型；对话发往当前供应商的当前模型。"
                 aside={
@@ -686,17 +715,8 @@ export default function SettingsPanel() {
                 id="usage"
                 title="对话与调用"
                 description="回复从哪来、带多少上下文，以及这一轮最多生成多少。"
+                hidden={section !== 'usage'}
               >
-                <div className="flex items-center gap-2 py-3 text-sm" data-mode={status.mode}>
-                  <span
-                    className={cn(
-                      'size-2 shrink-0 rounded-full',
-                      live ? 'bg-brand-hi' : 'bg-muted-foreground',
-                    )}
-                  />
-                  <span>{statusLine}</span>
-                </div>
-
                 <Row
                   title="回复来源"
                   description={
@@ -803,7 +823,12 @@ export default function SettingsPanel() {
                 </Row>
               </Section>
 
-              <Section id="appearance" title="外观" description="舞台与面板的观感，不影响请求。">
+              <Section
+                id="appearance"
+                title="外观"
+                description="舞台与面板的观感，不影响请求。"
+                hidden={section !== 'appearance'}
+              >
                 <Row
                   htmlFor="set-alpha"
                   title="浮置面板透明度"
@@ -892,7 +917,12 @@ export default function SettingsPanel() {
                 </Row>
               </Section>
 
-              <Section id="data" title="数据" description="这些都在本机，服务器上没有副本。">
+              <Section
+                id="data"
+                title="数据"
+                description="这些都在本机，服务器上没有副本；末尾是版本信息。"
+                hidden={section !== 'data'}
+              >
                 <Row
                   title="清空对话历史"
                   description="本机最多 20 段对话、每段 100 条消息会从 localStorage 删除，操作不可撤销。"
@@ -959,9 +989,6 @@ export default function SettingsPanel() {
                     </AlertDialogContent>
                   </AlertDialog>
                 </Row>
-              </Section>
-
-              <Section id="about" title="关于">
                 <AboutRow label="版本" value="0.1.0" />
                 <AboutRow label="角色素材" value="CC BY-NC-SA 4.0 · 非商业演示" />
                 <AboutRow label="登录" value="占位页，不接后端" />
